@@ -28,6 +28,10 @@ Run one command from the repository root:
 
 The first run creates a fingerprinted environment under `.validation-envs/` and installs every pinned development dependency there. Later runs reuse that exact environment. Changing the dependency set or Python version selects a fresh isolated environment, so removed dependencies cannot remain and mask an undeclared import. Nothing is installed into the system Python. When Codex system validators are available they run automatically; use `--require-official` when their absence must fail the command.
 
+Use `./scripts/validate --offline` when validation must never create an environment or contact a package index. It succeeds only when a ready environment already matches the current Python and complete dependency file. GitHub Actions uses the same validation entry point with its pre-installed cached dependencies; the Codex-only validators remain a local `--require-official` check because they are not present on hosted runners.
+
+Dependabot checks the pinned Python development dependencies and GitHub Actions weekly, opening reviewable pull requests instead of silently merging upgrades.
+
 ## Safety
 
 The plugin never requests credentials or broadens the user's authority. It requires deterministic validation, bounded evidence, explicit ownership, and privacy-aware handoffs.

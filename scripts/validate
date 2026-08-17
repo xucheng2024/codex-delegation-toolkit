@@ -42,10 +42,15 @@ def run(command: list[str]) -> None:
     subprocess.run(command, cwd=ROOT, check=True)
 
 
-def ensure_environment() -> Path:
+def ensure_environment(*, offline: bool) -> Path:
     environment = environment_path()
     python = venv_python(environment)
     ready = environment / ".ready"
+    if offline and not ready.is_file():
+        raise SystemExit(
+            "A ready isolated validation environment is unavailable for the current Python and "
+            "requirements; rerun ./scripts/validate once without --offline."
+        )
     if not python.is_file():
         print(f"Creating isolated validation environment {environment.relative_to(ROOT)} ...", flush=True)
         venv.EnvBuilder(with_pip=True).create(environment)
@@ -99,12 +104,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--no-bootstrap",
         action="store_true",
-        help="Use the current Python environment instead of creating or updating .venv.",
+        help="Use the current Python environment instead of creating or updating .validation-envs.",
     )
     parser.add_argument(
         "--require-official",
         action="store_true",
         help="Fail instead of skipping when official Codex validators are unavailable.",
+    )
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Reuse only a ready isolated environment; never create one or install dependencies.",
     )
     return parser.parse_args()
 
@@ -112,7 +122,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     if not args.no_bootstrap:
-        python = ensure_environment()
+        python = ensure_environment(offline=args.offline)
         command = [str(python), str(Path(__file__).resolve()), "--no-bootstrap"]
         if args.require_official:
             command.append("--require-official")

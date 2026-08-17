@@ -40,6 +40,14 @@ class ValidateScriptTests(unittest.TestCase):
             self.assertEqual(skill_validator, root / "skill-creator/scripts/quick_validate.py")
             self.assertEqual(plugin_validator, root / "plugin-creator/scripts/validate_plugin.py")
 
+    def test_offline_mode_never_creates_or_installs_an_environment(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with mock.patch.object(VALIDATE, "ENVIRONMENTS", Path(temp_dir)), mock.patch.object(VALIDATE, "run") as run, mock.patch.object(VALIDATE.venv, "EnvBuilder") as builder:
+                with self.assertRaisesRegex(SystemExit, "without --offline"):
+                    VALIDATE.ensure_environment(offline=True)
+        run.assert_not_called()
+        builder.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
