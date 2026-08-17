@@ -4,8 +4,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).parents[1]
-ROUTER = (ROOT / "skills/cost-aware-routing/SKILL.md").read_text(encoding="utf-8")
-BUDGET = (ROOT / "skills/agent-context-budget/SKILL.md").read_text(encoding="utf-8")
+PLUGIN = ROOT / "plugins/codex-delegation-toolkit"
+ROUTER = (PLUGIN / "skills/cost-aware-routing/SKILL.md").read_text(encoding="utf-8")
+BUDGET = (PLUGIN / "skills/agent-context-budget/SKILL.md").read_text(encoding="utf-8")
 CAPSULE_LABELS = (
     "History scope:",
     "Budget tier:",
