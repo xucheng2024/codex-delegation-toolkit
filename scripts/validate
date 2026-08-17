@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""Bootstrap an isolated development environment and validate the repository."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import os
+import subprocess
+import sys
+import venv
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+ENVIRONMENTS = ROOT / ".validation-envs"
+REQUIREMENTS = ROOT / "requirements-dev.txt"
+PLUGIN = ROOT / "plugins/codex-delegation-toolkit"
+SKILLS = (
+    PLUGIN / "skills/cost-aware-routing",
+    PLUGIN / "skills/agent-context-budget",
+)
+
+
+def requirements_fingerprint() -> str:
+    """Fingerprint the complete pinned development dependency set."""
+    return hashlib.sha256(REQUIREMENTS.read_bytes()).hexdigest()
+
+
+def environment_path() -> Path:
+    python_tag = f"py{sys.version_info.major}{sys.version_info.minor}"
+    return ENVIRONMENTS / f"{python_tag}-{requirements_fingerprint()[:16]}"
+
+
+def venv_python(environment: Path) -> Path:
+    if os.name == "nt":
+        return environment / "Scripts/python.exe"
+    return environment / "bin/python"
+
+
+def run(command: list[str]) -> None:
+    subprocess.run(command, cwd=ROOT, check=True)
+
+
+def ensure_environment() -> Path:
+    environment = environment_path()
+    python = venv_python(environment)
+    ready = environment / ".ready"
+    if not python.is_file():
+        print(f"Creating isolated validation environment {environment.relative_to(ROOT)} ...", flush=True)
+        venv.EnvBuilder(with_pip=True).create(environment)
+    if not ready.is_file():
+        print("Installing the complete pinned development dependency set ...", flush=True)
+        run(
+            [
+                str(python),
+                "-m",
+                "pip",
+                "install",
+                "--disable-pip-version-check",
+                "--requirement",
+                str(REQUIREMENTS),
+            ]
+        )
+        ready.write_text("ready\n", encoding="utf-8")
+    return python
+
+
+def validator_paths() -> tuple[Path, Path]:
+    codex_root = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).expanduser()
+    system_skills = codex_root / "skills/.system"
+    return (
+        system_skills / "skill-creator/scripts/quick_validate.py",
+        system_skills / "plugin-creator/scripts/validate_plugin.py",
+    )
+
+
+def validate(*, require_official: bool) -> None:
+    run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"])
+
+    skill_validator, plugin_validator = validator_paths()
+    if not skill_validator.is_file() or not plugin_validator.is_file():
+        if require_official:
+            raise SystemExit(
+                "Official Codex validators are unavailable; "
+                "install Codex system skills or omit --require-official."
+            )
+        print("Official Codex validators are unavailable; repository tests passed and official checks were skipped.")
+        return
+
+    for skill in SKILLS:
+        run([sys.executable, str(skill_validator), str(skill)])
+    run([sys.executable, str(plugin_validator), str(PLUGIN)])
+    print("Repository tests and official Codex validators passed.")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--no-bootstrap",
+        action="store_true",
+        help="Use the current Python environment instead of creating or updating .venv.",
+    )
+    parser.add_argument(
+        "--require-official",
+        action="store_true",
+        help="Fail instead of skipping when official Codex validators are unavailable.",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    if not args.no_bootstrap:
+        python = ensure_environment()
+        command = [str(python), str(Path(__file__).resolve()), "--no-bootstrap"]
+        if args.require_official:
+            command.append("--require-official")
+        return subprocess.run(command, cwd=ROOT, check=False).returncode
+
+    validate(require_official=args.require_official)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
