@@ -1,0 +1,24 @@
+{
+  "name": "codex-delegation-toolkit",
+  "version": "0.1.0",
+  "description": "Cost-aware delegation routing and compact, evidence-backed agent handoffs for Codex.",
+  "author": {
+    "name": "xucheng2024",
+    "url": "https://github.com/xucheng2024"
+  },
+  "homepage": "https://github.com/xucheng2024/codex-delegation-toolkit",
+  "repository": "https://github.com/xucheng2024/codex-delegation-toolkit",
+  "license": "MIT",
+  "keywords": ["codex", "delegation", "routing", "context"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex Delegation Toolkit",
+    "shortDescription": "Route complex work and prepare compact agent handoffs.",
+    "longDescription": "Choose when specialist delegation is justified, then package only the evidence and context the receiving agent needs.",
+    "developerName": "xucheng2024",
+    "category": "Productivity",
+    "capabilities": ["Delegation routing", "Context budgeting"],
+    "websiteURL": "https://github.com/xucheng2024/codex-delegation-toolkit",
+    "defaultPrompt": "Assess this task for delegation and prepare a compact handoff only if delegation is justified."
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Context Budget"
+  short_description: "Prepare compact evidence-backed agent handoffs"
+  default_prompt: "Use $agent-context-budget to prepare a bounded handoff for this delegated task."

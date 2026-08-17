@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cost-Aware Routing"
+  short_description: "Route complex work to the right agent and review depth"
+  default_prompt: "Use $cost-aware-routing to decide whether this task needs specialist delegation."
