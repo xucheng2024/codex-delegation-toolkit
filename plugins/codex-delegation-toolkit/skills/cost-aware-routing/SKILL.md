@@ -50,6 +50,18 @@ Never include credentials, private keys, tokens, cookies, unrelated personal dat
 4. Request a read-only independent review only for hard-trigger, cross-subsystem, or public-interface changes.
 5. Fix concrete issues once and run final targeted validation. Stop open-ended review loops.
 
-Prefer the environment's strongest planning/review model and a lower-cost capable executor. When configured, use a Sol-class planner/reviewer and a Terra-class parent/executor. If the preferred specialist is unavailable, disclose the fallback and keep the work local unless a capable substitute exists.
+## Resolve model roles
+
+Choose models by durable workload role, not by a model-family name:
+
+- `quality_first`: planning and independent review where a missed issue is expensive;
+- `balanced`: parent work and implementation requiring strong capability at moderate cost;
+- `economy`: bounded intake, classification, and high-volume low-risk work.
+
+Honor an explicit user model choice first when it is available and capable. Enforce any stated cost ceiling unless the user explicitly says that the named choice may exceed it. Otherwise prefer current model capability and availability metadata supplied by the runtime. When a trusted model catalog is available, run `scripts/resolve_model_roles.py --catalog <path>` and use its resolved role map. The catalog format and update policy are defined in `references/model-routing.md`.
+
+Treat catalog cost tiers as operator-provided classifications, not live price claims. Do not scrape pricing or silently rewrite routing during a task. Apply model-catalog updates through a reviewed configuration change after representative evaluations.
+
+If the requested role cannot be resolved reliably, disclose that fact and keep capable work on the parent. Ask one question only when a model choice or cost ceiling would materially change the result. Never guess that a newly named model is cheaper, stronger, or compatible.
 
 In the final response, list models that actually participated and deterministic validation performed.

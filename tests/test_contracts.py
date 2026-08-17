@@ -53,6 +53,13 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("$codex-speeder", ROUTER)
         self.assertIn("$codex-speeder", BUDGET)
 
+    def test_router_uses_durable_model_roles(self):
+        for role in ("quality_first", "balanced", "economy"):
+            self.assertIn(f"`{role}`", ROUTER)
+        self.assertNotIn("Sol-class", ROUTER)
+        self.assertNotIn("Terra-class", ROUTER)
+        self.assertIn("scripts/resolve_model_roles.py", ROUTER)
+
 
 if __name__ == "__main__":
     unittest.main()
