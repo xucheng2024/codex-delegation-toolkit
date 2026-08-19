@@ -63,6 +63,8 @@ class SkillContractTests(unittest.TestCase):
     def test_router_spawn_contract_uses_explicit_model_ids(self):
         self.assertIn("model: gpt-5.6-sol", ROUTER)
         self.assertIn("model: gpt-5.6-terra", ROUTER)
+        self.assertEqual(ROUTER.count("reasoning_effort: medium"), 2)
+        self.assertNotIn("model_reasoning_effort", ROUTER)
         self.assertIn("Never omit `model` on `spawn_agent`", ROUTER)
         self.assertIn("Never inherit the parent model or `default_subagent_model`", ROUTER)
         self.assertNotIn("Keep implementation on the parent after planning", ROUTER)

@@ -51,12 +51,12 @@ Default spawn ids when no operator catalog is present:
 ```text
 quality_first spawn_agent:
   model: gpt-5.6-sol
-  model_reasoning_effort: medium
+  reasoning_effort: medium
   fork_turns: none
 
 balanced spawn_agent:
   model: gpt-5.6-terra
-  model_reasoning_effort: medium
+  reasoning_effort: medium
   fork_turns: none
 ```
 
