@@ -157,27 +157,44 @@ class RoutingMatrixTests(unittest.TestCase):
         sol, terra, luna = roles["quality_first"], roles["balanced"], roles["economy"]
         available = {sol, terra, luna}
         cases = (
-            ("bounded_edit", "implement", terra, False, False, "parent", terra),
-            ("debug_and_tests", "implement", terra, False, False, "parent", terra),
-            ("unpinned_sol_parent_implement", "implement", sol, False, False, "spawn", terra),
-            ("hard_trigger_design", "judge", terra, False, False, "spawn", sol),
-            ("independent_review", "judge", terra, False, False, "spawn", sol),
-            ("explicit_sol_pin_implement", "implement", sol, True, False, "parent", sol),
-            ("sol_pin_permits_terra_implement", "implement", sol, True, True, "spawn", terra),
-            ("sol_unavailable", "judge", terra, False, False, "ask", sol),
+            ("bounded_edit", "implement", terra, False, False, False, False, False, "parent", terra, "medium"),
+            ("debug_and_tests", "implement", terra, False, False, False, False, False, "parent", terra, "medium"),
+            ("unpinned_sol_parent_implement", "implement", sol, False, False, False, False, False, "spawn", terra, "medium"),
+            ("unpinned_sol_parent_bounded_implement", "implement", sol, False, False, True, False, False, "thread", luna, "xhigh"),
+            ("planner_contract_complete_implement", "implement", sol, False, False, False, True, False, "thread", luna, "xhigh"),
+            ("hard_specified_luna_max", "implement", sol, False, False, False, True, True, "thread", luna, "max"),
+            ("hard_without_contract_stays_terra", "implement", sol, False, False, False, False, True, "spawn", terra, "medium"),
+            ("terra_parent_bounded_implement", "implement", terra, False, False, True, False, False, "parent", terra, "medium"),
+            ("terra_parent_complete_contract", "implement", terra, False, False, False, True, False, "parent", terra, "medium"),
+            ("luna_parent_bounded_implement", "implement", luna, False, False, True, False, False, "parent", luna, "xhigh"),
+            ("luna_parent_unbounded_implement", "implement", luna, False, False, False, False, False, "spawn", terra, "medium"),
+            ("hard_trigger_design", "judge", terra, False, False, False, False, False, "spawn", sol, "medium"),
+            ("independent_review", "judge", terra, False, False, True, False, False, "spawn", sol, "medium"),
+            ("explicit_sol_pin_implement", "implement", sol, True, False, True, True, True, "parent", sol, "medium"),
+            ("sol_pin_permits_terra_implement", "implement", sol, True, True, True, True, False, "spawn", terra, "medium"),
+            ("sol_unavailable", "judge", terra, False, False, False, False, False, "ask", sol, "medium"),
+            ("luna_unavailable_bounded", "implement", sol, False, False, True, False, False, "ask", luna, "xhigh"),
         )
         sol_spawns = 0
-        for name, step, parent, pin, permit, action, model in cases:
-            models = {terra, luna} if name == "sol_unavailable" else available
-            result = router.decide(step, parent, pin, permit, models, roles)
+        luna_threads = 0
+        for name, step, parent, pin, permit, bounded, complete, hard, action, model, effort in cases:
+            models = {terra, luna} if name == "sol_unavailable" else {sol, terra} if name == "luna_unavailable_bounded" else available
+            result = router.decide(step, parent, pin, permit, models, roles, bounded, complete, hard)
             self.assertEqual(result["action"], action, name)
             self.assertEqual(result["model"], model, name)
-            if name == "sol_unavailable":
+            self.assertEqual(result["effort"], effort, name)
+            if action in {"spawn", "thread"}:
+                self.assertEqual(result.get("spawn"), action == "spawn", name)
+                self.assertEqual(result.get("thread"), action == "thread", name)
+            if name in {"sol_unavailable", "luna_unavailable_bounded"}:
                 self.assertEqual(result["status"], "ask")
                 self.assertNotEqual(result["model"], terra)
             if action == "spawn" and model == sol:
                 sol_spawns += 1
+            if action == "thread" and model == luna:
+                luna_threads += 1
         self.assertEqual(sol_spawns, 2)
+        self.assertEqual(luna_threads, 3)
 
 
 if __name__ == "__main__":

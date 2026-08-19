@@ -36,6 +36,12 @@ def load_role_map(path: Path) -> dict[str, str]:
     return {role: str(roles[role]) for role in required}
 
 
+def effort_for(role: str, hard_packet: bool) -> str:
+    if role == "economy":
+        return "max" if hard_packet else "xhigh"
+    return "medium"
+
+
 def decide(
     step: str,
     parent: str,
@@ -43,20 +49,34 @@ def decide(
     terra_permit: bool,
     available: set[str],
     roles: dict[str, str],
+    bounded: bool = False,
+    contract_complete: bool = False,
+    hard_packet: bool = False,
 ) -> dict[str, Any]:
     if step not in STEPS:
         raise RouteError("step must be implement or judge")
     sol = roles["quality_first"]
     terra = roles["balanced"]
+    luna = roles["economy"]
+    specified = bounded or contract_complete
     if sol_pin and not terra_permit:
         target, role = sol, "quality_first"
         actor = "parent" if parent == sol else "spawn"
     elif step == "judge":
         target, role, actor = sol, "quality_first", "spawn"
+    elif sol_pin:
+        target, role = terra, "balanced"
+        actor = "parent" if parent == terra else "spawn"
+    elif specified and parent == terra:
+        target, role, actor = terra, "balanced", "parent"
+    elif specified:
+        target, role = luna, "economy"
+        actor = "parent" if parent == luna else "thread"
     elif parent == terra:
         target, role, actor = terra, "balanced", "parent"
     else:
         target, role, actor = terra, "balanced", "spawn"
+    effort = effort_for(role, hard_packet)
     if target not in available:
         return {
             "schema": OUTPUT_SCHEMA,
@@ -64,6 +84,7 @@ def decide(
             "action": "ask",
             "role": role,
             "model": target,
+            "effort": effort,
             "reason": "target unavailable; disclose and ask or explicit degrade",
         }
     return {
@@ -72,7 +93,9 @@ def decide(
         "action": actor,
         "role": role,
         "model": target,
+        "effort": effort,
         "spawn": actor == "spawn",
+        "thread": actor == "thread",
     }
 
 
@@ -84,11 +107,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--parent", required=True)
     parser.add_argument("--sol-pin", action="store_true")
     parser.add_argument("--terra-permit", action="store_true")
+    parser.add_argument("--bounded", action="store_true")
+    parser.add_argument("--contract-complete", action="store_true")
+    parser.add_argument("--hard-packet", action="store_true")
     parser.add_argument("--available", nargs="+", required=True)
     args = parser.parse_args(argv)
     try:
         roles = load_role_map(args.role_map)
-        output = decide(args.step, args.parent, args.sol_pin, args.terra_permit, set(args.available), roles)
+        output = decide(
+            args.step,
+            args.parent,
+            args.sol_pin,
+            args.terra_permit,
+            set(args.available),
+            roles,
+            args.bounded,
+            args.contract_complete,
+            args.hard_packet,
+        )
     except (OSError, UnicodeError, json.JSONDecodeError, RouteError) as exc:
         print(json.dumps({"schema": OUTPUT_SCHEMA, "status": "invalid", "error": str(exc)}))
         return 2

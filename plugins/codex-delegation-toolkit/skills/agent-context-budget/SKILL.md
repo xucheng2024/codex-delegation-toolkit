@@ -9,7 +9,7 @@ Budget only the context deliberately supplied in a handoff. Do not claim to remo
 
 ## Choose history scope
 
-- Use `fork_turns: "none"` for executors and independent reviewers by default.
+- Use `fork_turns: "none"` for executors, economy top-level threads, and independent reviewers by default.
 - For planners or adjudicators, preserve the user's material wording and use the smallest bounded recent history that affects the decision.
 - Use full history only when compaction would create material ambiguity and privacy permits sharing it.
 - Follow the active routing policy. Do not select the agent, model, or delegation strategy here.
@@ -43,6 +43,7 @@ Use `Routine` for bounded, reversible, single-component work; target at most rou
 - Mark truncation, stale snapshots, omissions, and uncertain coverage.
 - Keep a parent preference only in `Parent hypothesis`, label it non-binding, and ask a planner to challenge it independently.
 - When `$codex-speeder` is available, pass its evidence IDs and exact `expand` or `read-source` command. Otherwise use bounded paths, symbols, searches, and commands.
+- For an independent reviewer, do not forward the planner or executor capsule. Put the diff locator in Anchors. Keep Scope, Constraints/Risks, and Acceptance. Set every other field to `None — independent review of the diff only`. Do not include implementation narrative, planner reasoning, or a parent hypothesis.
 
 Never include credentials, tokens, private keys, session data, cookies, secret-bearing environment values, unrelated conversation, customer data, or unnecessary personal information.
 
@@ -56,4 +57,4 @@ Allow at most two focused delta rounds by default. Each delta must name the bloc
 
 Before sending, verify all capsule labels are present, user wording is bounded and preserved, scope and authority are explicit, observed claims have fresh locators, hypotheses remain non-binding, acceptance is testable, and privacy is protected.
 
-Ask the recipient to report its outcome, evidence consulted, validation performed, and unresolved gaps. Keep final integration and deterministic validation with the parent.
+Ask the recipient to report its outcome, evidence consulted, validation performed, and unresolved gaps. Keep final integration and deterministic validation with the parent. For an economy top-level thread, treat Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate as a stop-or-guess contract: name the finished state, in-scope files, forbidden changes, proof of completion, and the missing decision that must halt work. Do not fill those fields with `None —` unless genuinely inapplicable; a missing required field means the contract is incomplete.

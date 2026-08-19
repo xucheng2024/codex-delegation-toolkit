@@ -48,7 +48,9 @@ Do not put live `available` flags in the bundled role map. [model-role-map.json]
 - `balanced` → `gpt-5.6-terra`
 - `economy` → `gpt-5.6-luna`
 
-An operator catalog is the only place `available` may claim current runtime or account state. If no catalog is present, use the role map, then confirm each spawn id against runtime metadata. If the target is unavailable or an operator catalog marks it `available: false`, disclose and ask once or apply an explicit named degrade. Do not silently substitute another model, and do not send the whole task to whoever the parent is.
+Transport follows the role: `quality_first` and `balanced` use `spawn_agent`; `economy` uses a separate top-level thread, not `spawn_agent`. Confirm that transport against the current runtime before sending work. Economy threads default to `xhigh` effort; use `max` only when the packet is tightly specified and genuinely hard.
+
+An operator catalog is the only place `available` may claim current runtime or account state. If no catalog is present, use the role map, then confirm each spawn or thread id against runtime metadata. If the target is unavailable or an operator catalog marks it `available: false`, disclose and ask once or apply an explicit named degrade. Do not silently substitute another model, and do not send the whole task to whoever the parent is.
 
 ## Safe updates
 

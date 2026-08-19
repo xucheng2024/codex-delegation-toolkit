@@ -30,6 +30,10 @@ class SkillContractTests(unittest.TestCase):
 
     def test_budget_does_not_select_routing(self):
         self.assertIn("Do not select the agent, model, or delegation strategy", BUDGET)
+        self.assertIn("stop-or-guess contract", BUDGET)
+        self.assertIn("a missing required field means the contract is incomplete", BUDGET)
+        self.assertIn("None — independent review of the diff only", BUDGET)
+        self.assertIn("do not forward the planner or executor capsule", BUDGET)
 
     def test_budget_retains_routine_and_expanded_soft_limits(self):
         for value in ("800 capsule tokens", "eight anchors", "1,500 capsule tokens", "twelve anchors", "not hard correctness limits"):
@@ -63,10 +67,16 @@ class SkillContractTests(unittest.TestCase):
     def test_router_spawn_contract_uses_explicit_model_ids(self):
         self.assertIn("model: gpt-5.6-sol", ROUTER)
         self.assertIn("model: gpt-5.6-terra", ROUTER)
+        self.assertIn("model: gpt-5.6-luna", ROUTER)
         self.assertEqual(ROUTER.count("reasoning_effort: medium"), 2)
+        self.assertIn("reasoning_effort: xhigh", ROUTER)
         self.assertNotIn("model_reasoning_effort", ROUTER)
         self.assertIn("Never omit `model` on `spawn_agent`", ROUTER)
         self.assertIn("Never inherit the parent model or `default_subagent_model`", ROUTER)
+        self.assertIn("Never place the `economy` model on `spawn_agent`", ROUTER)
+        self.assertIn("start an economy top-level thread", ROUTER)
+        self.assertIn("Do not use `max` as the default", ROUTER)
+        self.assertIn("After a justified planner returns that contract, treat the implement step as specified", ROUTER)
         self.assertNotIn("Keep implementation on the parent after planning", ROUTER)
         self.assertNotIn("keep capable work on the parent", ROUTER)
 
@@ -74,6 +84,27 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("Staying on the parent assigns ownership of the decision and delivery, not who writes the code", ROUTER)
         self.assertIn("parent coordinates only; spawn a Terra executor", ROUTER)
         self.assertIn("Do not let an unpinned Sol parent run the long coding loop", ROUTER)
+        self.assertIn("Do not send the `economy` model through `spawn_agent`", ROUTER)
+        self.assertIn("plan on the parent; do not spawn a second planner", ROUTER)
+        self.assertIn("If that contract is complete, implement on an economy top-level thread", ROUTER)
+
+    def test_router_reviews_economy_hard_trigger_work_after_planning(self):
+        self.assertIn(
+            "After an economy implement of hard-trigger, cross-subsystem, or public-interface work, request one fresh read-only `quality_first` review of the diff even if a planner pass already ran.",
+            ROUTER,
+        )
+        self.assertIn(
+            "Do not add that extra review after a Terra implement when a planner pass already ran, unless the user pinned Sol.",
+            ROUTER,
+        )
+        self.assertIn(
+            "After an economy thread completes hard-trigger, cross-subsystem, or public-interface work, request a read-only independent Sol review of the diff even if Sol already planned.",
+            ROUTER,
+        )
+        self.assertIn(
+            "Package the review with `$agent-context-budget` as a diff-only handoff.",
+            ROUTER,
+        )
 
     def test_router_sol_pin_covers_all_work_unless_terra_delegation_is_permitted(self):
         self.assertIn(
@@ -81,6 +112,7 @@ class SkillContractTests(unittest.TestCase):
             ROUTER,
         )
         self.assertIn("A runtime default, family alias, or leftover parent model is not a pin", ROUTER)
+        self.assertIn("Sol pin with Terra-delegation permission: implement on Terra", ROUTER)
         self.assertIn("Sol pin without Terra-delegation permission: all slices stay on Sol, including implementation", ROUTER)
 
     def test_router_does_not_silently_swap_unavailable_models(self):
