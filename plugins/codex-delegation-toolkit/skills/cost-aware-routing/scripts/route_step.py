@@ -58,18 +58,19 @@ def decide(
     sol = roles["quality_first"]
     terra = roles["balanced"]
     luna = roles["economy"]
-    specified = bounded or contract_complete
-    if sol_pin and not terra_permit:
+    economy_eligible = bounded and contract_complete
+    if step == "judge":
+        # Reviews must be independent, including when the parent is Sol-pinned.
+        target, role, actor = sol, "quality_first", "spawn"
+    elif sol_pin and not terra_permit:
         target, role = sol, "quality_first"
         actor = "parent" if parent == sol else "spawn"
-    elif step == "judge":
-        target, role, actor = sol, "quality_first", "spawn"
     elif sol_pin:
         target, role = terra, "balanced"
         actor = "parent" if parent == terra else "spawn"
-    elif specified and parent == terra:
+    elif economy_eligible and parent == terra:
         target, role, actor = terra, "balanced", "parent"
-    elif specified:
+    elif economy_eligible:
         target, role = luna, "economy"
         actor = "parent" if parent == luna else "thread"
     elif parent == terra:
