@@ -63,6 +63,9 @@ class SkillContractTests(unittest.TestCase):
         self.assertNotIn("Sol-class", ROUTER)
         self.assertNotIn("Terra-class", ROUTER)
         self.assertIn("scripts/resolve_model_roles.py", ROUTER)
+        self.assertIn("scripts/route_step.py", ROUTER)
+        self.assertIn("Honor the script output", ROUTER)
+        self.assertIn("Do not re-derive the matrix by hand", ROUTER)
 
     def test_router_spawn_contract_uses_explicit_model_ids(self):
         self.assertIn("model: gpt-5.6-sol", ROUTER)

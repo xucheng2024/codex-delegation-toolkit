@@ -71,6 +71,8 @@ Never omit `model` on `spawn_agent`. Never inherit the parent model or `default_
 
 A stop-or-guess contract is complete only when Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate are concrete, not `None —`. After a justified planner returns that contract, treat the implement step as specified.
 
+For each implement or judge step, classify `--sol-pin`, `--terra-permit`, `--bounded`, `--contract-complete`, and `--hard-packet`, then run `scripts/route_step.py` with `--step`, `--parent`, those flags, and `--available`. Honor the script output for `action`, `model`, and `effort`. If `status` is `ask`, disclose and ask or apply an explicit named degrade. Do not re-derive the matrix by hand.
+
 Execution after the pin check:
 
 - No Sol pin, parent is Terra: implement on the parent.
@@ -97,7 +99,7 @@ Never include credentials, private keys, tokens, cookies, unrelated personal dat
 
 1. State the selected specialist role, spawn or thread `model`, and concrete routing reason before delegation.
 2. For a justified planner, independently restate the problem, compare materially different designs, select one, and return an implementation contract with risks, acceptance criteria, and focused validation. Do not seed it with an unlabeled preferred answer. If the parent is already `quality_first`, do this on the parent.
-3. If that contract is complete, implement on an economy top-level thread. If any required field is missing, or the work is still a debug or exploration loop, spawn Terra. If a material architectural or safety deviation becomes necessary, send only that delta for adjudication. Do not let an economy thread widen scope or invent architecture.
+3. Honor the script output for implement and judge transport. If that contract is complete, implement on an economy top-level thread. If any required field is missing, or the work is still a debug or exploration loop, spawn Terra. If a material architectural or safety deviation becomes necessary, send only that delta for adjudication. Do not let an economy thread widen scope or invent architecture.
 4. After an economy thread completes hard-trigger, cross-subsystem, or public-interface work, request a read-only independent Sol review of the diff even if Sol already planned. After a Terra implement, request that review only when a Sol pass has not already been used unless the user pinned Sol. Package the review with `$agent-context-budget` as a diff-only handoff.
 5. Fix concrete issues once and run final targeted validation. Stop open-ended review loops.
 
