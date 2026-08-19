@@ -19,11 +19,11 @@ With no hard trigger and fewer than two soft triggers, stay on the parent. Other
 
 ## Routing contract
 
-`quality_first` handles architecture, hard risk, and independent review; `balanced` implements and debugs; `economy` handles only bounded, fully specified work.
+`quality_first` handles architecture, hard risk, and independent review; `balanced` implements and debugs.
 
 An explicit user Sol pin applies to all task work unless the user explicitly permits Terra delegation. A runtime default, family alias, or inherited model is not a pin.
 
-A contract is complete only when Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate are concrete. Economy work requires both `bounded` and `contract_complete`; it runs as a separate top-level thread, never `spawn_agent`.
+A contract is complete only when Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate are concrete.
 
 For every `implement` or `judge` step, classify `--sol-pin`, `--terra-permit`, `--bounded`, `--contract-complete`, and `--hard-packet`, then run:
 
@@ -39,7 +39,7 @@ Use at most one planner. Do not delegate routine restatement or self-review. Use
 
 ## Review gate
 
-After any non-Sol hard-trigger implementation, request one fresh read-only `quality_first` diff review, even if Sol planned. Also review economy cross-subsystem work. Terra work triggered only by soft complexity may skip it only with a complete contract, no material deviation, and passing deterministic validation.
+After any non-Sol hard-trigger implementation, request one fresh read-only `quality_first` diff review, even if Sol planned. Terra work triggered only by soft complexity may skip it only with a complete contract, no material deviation, and passing deterministic validation.
 
 Pass the approved contract, changed-file list, diff, deterministic results, and focused caller/configuration/test impact references when relevant. The reviewer may report any material correctness, security, compatibility, or contract risk; it must not reopen design exploration. Fix concrete findings once, rerun focused validation, and stop unless a hard-risk finding or failed validation creates a new delta.
 

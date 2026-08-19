@@ -37,7 +37,7 @@ def catalog():
                 "capabilities": ["reasoning", "coding", "general"],
             },
             {
-                "id": "future-economy-x",
+                "id": "future-coding-x",
                 "available": True,
                 "quality_tier": 3,
                 "cost_tier": 1,
@@ -54,11 +54,10 @@ class ModelResolverTests(unittest.TestCase):
         self.assertEqual(output["status"], "resolved")
         self.assertEqual(output["roles"]["quality_first"]["model"], "future-frontier-z")
         self.assertEqual(output["roles"]["balanced"]["model"], "future-balanced-y")
-        self.assertEqual(output["roles"]["economy"]["model"], "future-economy-x")
 
     def test_override_must_remain_available_capable_and_under_ceiling(self):
         data = catalog()
-        data["overrides"] = {"quality_first": "future-economy-x"}
+        data["overrides"] = {"quality_first": "future-coding-x"}
         with self.assertRaisesRegex(RESOLVER.CatalogError, "incapable"):
             RESOLVER.resolve(data)
 
@@ -137,7 +136,6 @@ class RoleMapTests(unittest.TestCase):
             {
                 "quality_first": "gpt-5.6-sol",
                 "balanced": "gpt-5.6-terra",
-                "economy": "gpt-5.6-luna",
             },
         )
         self.assertNotIn("available", json.dumps(data))
@@ -154,49 +152,41 @@ class RoutingMatrixTests(unittest.TestCase):
         assert spec.loader is not None
         spec.loader.exec_module(router)
         roles = router.load_role_map(ROLE_MAP)
-        sol, terra, luna = roles["quality_first"], roles["balanced"], roles["economy"]
-        available = {sol, terra, luna}
+        sol, terra = roles["quality_first"], roles["balanced"]
+        available = {sol, terra}
         cases = (
             ("bounded_edit", "implement", terra, False, False, False, False, False, "parent", terra, "medium"),
             ("debug_and_tests", "implement", terra, False, False, False, False, False, "parent", terra, "medium"),
             ("unpinned_sol_parent_implement", "implement", sol, False, False, False, False, False, "spawn", terra, "medium"),
             ("bounded_without_contract_stays_terra", "implement", sol, False, False, True, False, False, "spawn", terra, "medium"),
             ("contract_without_bounded_stays_terra", "implement", sol, False, False, False, True, False, "spawn", terra, "medium"),
-            ("bounded_complete_luna", "implement", sol, False, False, True, True, False, "thread", luna, "xhigh"),
-            ("hard_bounded_complete_luna_max", "implement", sol, False, False, True, True, True, "thread", luna, "max"),
+            ("bounded_complete_stays_terra", "implement", sol, False, False, True, True, False, "spawn", terra, "medium"),
+            ("hard_bounded_complete_stays_terra", "implement", sol, False, False, True, True, True, "spawn", terra, "medium"),
             ("hard_without_contract_stays_terra", "implement", sol, False, False, False, False, True, "spawn", terra, "medium"),
             ("terra_parent_bounded_implement", "implement", terra, False, False, True, False, False, "parent", terra, "medium"),
             ("terra_parent_complete_contract", "implement", terra, False, False, False, True, False, "parent", terra, "medium"),
-            ("luna_parent_bounded_without_contract", "implement", luna, False, False, True, False, False, "spawn", terra, "medium"),
-            ("luna_parent_unbounded_implement", "implement", luna, False, False, False, False, False, "spawn", terra, "medium"),
             ("hard_trigger_design", "judge", terra, False, False, False, False, False, "spawn", sol, "medium"),
             ("independent_review", "judge", terra, False, False, True, False, False, "spawn", sol, "medium"),
             ("sol_pinned_review_is_independent", "judge", sol, True, False, True, True, False, "spawn", sol, "medium"),
             ("explicit_sol_pin_implement", "implement", sol, True, False, True, True, True, "parent", sol, "medium"),
             ("sol_pin_permits_terra_implement", "implement", sol, True, True, True, True, False, "spawn", terra, "medium"),
             ("sol_unavailable", "judge", terra, False, False, False, False, False, "ask", sol, "medium"),
-            ("luna_unavailable_bounded_complete", "implement", sol, False, False, True, True, False, "ask", luna, "xhigh"),
         )
         sol_spawns = 0
-        luna_threads = 0
         for name, step, parent, pin, permit, bounded, complete, hard, action, model, effort in cases:
-            models = {terra, luna} if name == "sol_unavailable" else {sol, terra} if name == "luna_unavailable_bounded_complete" else available
+            models = {terra} if name == "sol_unavailable" else available
             result = router.decide(step, parent, pin, permit, models, roles, bounded, complete, hard)
             self.assertEqual(result["action"], action, name)
             self.assertEqual(result["model"], model, name)
             self.assertEqual(result["effort"], effort, name)
-            if action in {"spawn", "thread"}:
+            if action == "spawn":
                 self.assertEqual(result.get("spawn"), action == "spawn", name)
-                self.assertEqual(result.get("thread"), action == "thread", name)
-            if name in {"sol_unavailable", "luna_unavailable_bounded_complete"}:
+            if name == "sol_unavailable":
                 self.assertEqual(result["status"], "ask")
                 self.assertNotEqual(result["model"], terra)
             if action == "spawn" and model == sol:
                 sol_spawns += 1
-            if action == "thread" and model == luna:
-                luna_threads += 1
         self.assertEqual(sol_spawns, 3)
-        self.assertEqual(luna_threads, 2)
 
 
 if __name__ == "__main__":

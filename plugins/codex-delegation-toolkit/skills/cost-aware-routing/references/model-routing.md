@@ -19,8 +19,7 @@ Use the resolver when a runtime or operator provides a trusted catalog of curren
   ],
   "role_requirements": {
     "quality_first": ["reasoning"],
-    "balanced": ["coding"],
-    "economy": ["general"]
+    "balanced": ["coding"]
   },
   "overrides": {
     "balanced": "example-model"
@@ -37,7 +36,6 @@ The default role requirements above apply when `role_requirements` is omitted. A
 
 - `quality_first` maximizes quality, then prefers lower cost and latency.
 - `balanced` minimizes a monotonic score combining cost, latency, and squared capability shortfall, then prefers the stronger model.
-- `economy` minimizes cost and latency, then prefers quality.
 - Stable model ID ordering breaks exact ties, keeping output deterministic.
 
 The resolver fails closed if a role has no eligible model or if an override is invalid. It never performs network access, changes the catalog, or prints catalog contents.
@@ -46,11 +44,10 @@ Do not put live `available` flags in the bundled role map. [model-role-map.json]
 
 - `quality_first` → `gpt-5.6-sol`
 - `balanced` → `gpt-5.6-terra`
-- `economy` → `gpt-5.6-luna`
 
-Transport follows the role: `quality_first` and `balanced` use `spawn_agent`; `economy` uses a separate top-level thread, not `spawn_agent`. Confirm that transport against the current runtime before sending work. Economy threads default to `xhigh` effort; use `max` only when the packet is tightly specified and genuinely hard.
+Both roles use `spawn_agent`. Confirm the target model is available in the current runtime before delegating.
 
-An operator catalog is the only place `available` may claim current runtime or account state. If no catalog is present, use the role map, then confirm each spawn or thread id against runtime metadata. If the target is unavailable or an operator catalog marks it `available: false`, disclose and ask once or apply an explicit named degrade. Do not silently substitute another model, and do not send the whole task to whoever the parent is.
+An operator catalog is the only place `available` may claim current runtime or account state. If no catalog is present, use the role map, then confirm each spawn id against runtime metadata. If the target is unavailable or an operator catalog marks it `available: false`, disclose and ask once or apply an explicit named degrade. Do not silently substitute another model, and do not send the whole task to whoever the parent is.
 
 ## Safe updates
 
@@ -62,4 +59,4 @@ Run:
 python scripts/resolve_model_roles.py --catalog /trusted/path/model-catalog.json
 ```
 
-Exit status is `0` when all roles resolve, `2` for an invalid catalog, and `3` when valid data cannot resolve every role.
+Exit status is `0` when both roles resolve, `2` for an invalid catalog, and `3` when valid data cannot resolve a role.

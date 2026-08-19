@@ -28,7 +28,7 @@ def load_role_map(path: Path) -> dict[str, str]:
     roles = data.get("roles")
     if not isinstance(roles, dict):
         raise RouteError("roles must be an object")
-    required = ("quality_first", "balanced", "economy")
+    required = ("quality_first", "balanced")
     for role in required:
         model = roles.get(role)
         if not isinstance(model, str) or not model:
@@ -37,8 +37,6 @@ def load_role_map(path: Path) -> dict[str, str]:
 
 
 def effort_for(role: str, hard_packet: bool) -> str:
-    if role == "economy":
-        return "max" if hard_packet else "xhigh"
     return "medium"
 
 
@@ -57,8 +55,6 @@ def decide(
         raise RouteError("step must be implement or judge")
     sol = roles["quality_first"]
     terra = roles["balanced"]
-    luna = roles["economy"]
-    economy_eligible = bounded and contract_complete
     if step == "judge":
         # Reviews must be independent, including when the parent is Sol-pinned.
         target, role, actor = sol, "quality_first", "spawn"
@@ -68,11 +64,6 @@ def decide(
     elif sol_pin:
         target, role = terra, "balanced"
         actor = "parent" if parent == terra else "spawn"
-    elif economy_eligible and parent == terra:
-        target, role, actor = terra, "balanced", "parent"
-    elif economy_eligible:
-        target, role = luna, "economy"
-        actor = "parent" if parent == luna else "thread"
     elif parent == terra:
         target, role, actor = terra, "balanced", "parent"
     else:
@@ -96,7 +87,6 @@ def decide(
         "model": target,
         "effort": effort,
         "spawn": actor == "spawn",
-        "thread": actor == "thread",
     }
 
 

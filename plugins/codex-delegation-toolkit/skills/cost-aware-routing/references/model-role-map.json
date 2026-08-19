@@ -2,7 +2,6 @@
   "schema": "codex-model-role-map-v1",
   "roles": {
     "quality_first": "gpt-5.6-sol",
-    "balanced": "gpt-5.6-terra",
-    "economy": "gpt-5.6-luna"
+    "balanced": "gpt-5.6-terra"
   }
 }

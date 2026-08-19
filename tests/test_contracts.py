@@ -32,9 +32,9 @@ class SkillContractTests(unittest.TestCase):
 
     def test_router_keeps_safety_critical_routing_rules(self):
         for value in (
-            "`quality_first`", "`balanced`", "`economy`", "scripts/route_step.py",
+            "`quality_first`", "`balanced`", "scripts/route_step.py",
             "Honor the script output", "do not re-derive the matrix",
-            "both `bounded` and `contract_complete`", "fresh spawned `quality_first` instance",
+            "fresh spawned `quality_first` instance",
             "never silently substitute a model",
         ):
             self.assertIn(value, ROUTER)
@@ -42,7 +42,6 @@ class SkillContractTests(unittest.TestCase):
     def test_router_keeps_independent_review_gate(self):
         for value in (
             "After any non-Sol hard-trigger implementation",
-            "Also review economy cross-subsystem work",
             "complete contract, no material deviation, and passing deterministic validation",
             "material correctness, security, compatibility, or contract risk",
             "focused caller/configuration/test impact references",
