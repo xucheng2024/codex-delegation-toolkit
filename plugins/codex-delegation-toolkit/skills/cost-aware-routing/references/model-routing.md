@@ -42,6 +42,14 @@ The default role requirements above apply when `role_requirements` is omitted. A
 
 The resolver fails closed if a role has no eligible model or if an override is invalid. It never performs network access, changes the catalog, or prints catalog contents.
 
+Do not put live `available` flags in the bundled role map. [model-role-map.json](model-role-map.json) is a default id map only:
+
+- `quality_first` → `gpt-5.6-sol`
+- `balanced` → `gpt-5.6-terra`
+- `economy` → `gpt-5.6-luna`
+
+An operator catalog is the only place `available` may claim current runtime or account state. If no catalog is present, use the role map, then confirm each spawn id against runtime metadata. If the target is unavailable or an operator catalog marks it `available: false`, disclose and ask once or apply an explicit named degrade. Do not silently substitute another model, and do not send the whole task to whoever the parent is.
+
 ## Safe updates
 
 Generate or edit catalogs outside task routing using trusted runtime metadata and current provider documentation. Benchmark representative workloads before changing tiers. Submit updates as reviewed configuration changes, ideally on a schedule, instead of changing production routing silently.

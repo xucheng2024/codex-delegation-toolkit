@@ -60,6 +60,33 @@ class SkillContractTests(unittest.TestCase):
         self.assertNotIn("Terra-class", ROUTER)
         self.assertIn("scripts/resolve_model_roles.py", ROUTER)
 
+    def test_router_spawn_contract_uses_explicit_model_ids(self):
+        self.assertIn("model: gpt-5.6-sol", ROUTER)
+        self.assertIn("model: gpt-5.6-terra", ROUTER)
+        self.assertIn("Never omit `model` on `spawn_agent`", ROUTER)
+        self.assertIn("Never inherit the parent model or `default_subagent_model`", ROUTER)
+        self.assertNotIn("Keep implementation on the parent after planning", ROUTER)
+        self.assertNotIn("keep capable work on the parent", ROUTER)
+
+    def test_router_treats_stay_on_parent_as_ownership(self):
+        self.assertIn("Staying on the parent assigns ownership of the decision and delivery, not who writes the code", ROUTER)
+        self.assertIn("parent coordinates only; spawn a Terra executor", ROUTER)
+        self.assertIn("Do not let an unpinned Sol parent run the long coding loop", ROUTER)
+
+    def test_router_sol_pin_covers_all_work_unless_terra_delegation_is_permitted(self):
+        self.assertIn(
+            "An explicit user Sol pin applies to all task work unless the user explicitly permits delegation to Terra.",
+            ROUTER,
+        )
+        self.assertIn("A runtime default, family alias, or leftover parent model is not a pin", ROUTER)
+        self.assertIn("Sol pin without Terra-delegation permission: all slices stay on Sol, including implementation", ROUTER)
+
+    def test_router_does_not_silently_swap_unavailable_models(self):
+        self.assertIn("Do not silently substitute another model", ROUTER)
+        self.assertIn("disclose the gap", ROUTER)
+        self.assertIn("`available: false`, treat it as unavailable", ROUTER)
+        self.assertIn("Do not fail closed to the parent for the entire task merely because a catalog file is missing", ROUTER)
+
 
 if __name__ == "__main__":
     unittest.main()
