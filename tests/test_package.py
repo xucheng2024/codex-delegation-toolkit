@@ -33,10 +33,23 @@ class PackageTests(unittest.TestCase):
 
     def test_marketplace_points_to_the_plugin(self):
         marketplace = json.loads((ROOT / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
-        entry = marketplace["plugins"][0]
-        self.assertEqual(entry["name"], "codex-delegation-toolkit")
-        self.assertEqual(entry["source"]["path"], "./plugins/codex-delegation-toolkit")
-        self.assertTrue((ROOT / entry["source"]["path"] / ".codex-plugin/plugin.json").is_file())
+        names = [entry["name"] for entry in marketplace["plugins"]]
+        self.assertEqual(names[0], "codex-delegation-toolkit")
+        self.assertIn("keep-plot", names)
+        by_name = {entry["name"]: entry for entry in marketplace["plugins"]}
+        toolkit = by_name["codex-delegation-toolkit"]
+        self.assertEqual(toolkit["source"]["path"], "./plugins/codex-delegation-toolkit")
+        self.assertTrue((ROOT / toolkit["source"]["path"] / ".codex-plugin/plugin.json").is_file())
+        keep_plot = by_name["keep-plot"]
+        self.assertEqual(keep_plot["source"]["path"], "./plugins/keep-plot")
+        self.assertTrue((ROOT / keep_plot["source"]["path"] / ".codex-plugin/plugin.json").is_file())
+
+    def test_toolkit_plugin_does_not_include_same_thread_checkpoint(self):
+        self.assertEqual(SKILLS, ("cost-aware-routing", "agent-context-budget"))
+        self.assertFalse((PLUGIN / "skills/keep-plot").exists())
+        self.assertFalse((PLUGIN / "skills/context-checkpoint").exists())
+        skill_dirs = sorted(path.name for path in (PLUGIN / "skills").iterdir() if path.is_dir())
+        self.assertEqual(skill_dirs, sorted(SKILLS))
 
 
 if __name__ == "__main__":

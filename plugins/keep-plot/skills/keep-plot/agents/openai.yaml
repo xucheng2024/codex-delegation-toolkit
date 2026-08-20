@@ -1,0 +1,6 @@
+interface:
+  display_name: "Keep Plot"
+  short_description: "Compact this chat without losing the plot"
+  default_prompt: "Use $keep-plot after a closed phase to save what still matters, then compact this thread."
+policy:
+  allow_implicit_invocation: false

@@ -24,6 +24,10 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("do not invoke it when work remains on the parent", ROUTER)
 
     def test_budget_contract_is_stable(self):
+        self.assertIn("Do not use for ordinary single-agent work", BUDGET)
+        self.assertNotIn("keep-plot", BUDGET)
+        self.assertNotIn("$keep-plot", ROUTER)
+        self.assertNotIn("context-checkpoint", BUDGET)
         self.assertIn("Do not select the agent, model, or delegation strategy", BUDGET)
         block = re.search(r"```text\n(.*?)\n```", BUDGET, re.DOTALL)
         self.assertIsNotNone(block)

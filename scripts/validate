@@ -16,9 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 ENVIRONMENTS = ROOT / ".validation-envs"
 REQUIREMENTS = ROOT / "requirements-dev.txt"
 PLUGIN = ROOT / "plugins/codex-delegation-toolkit"
+KEEP_PLOT_PLUGIN = ROOT / "plugins/keep-plot"
 SKILLS = (
     PLUGIN / "skills/cost-aware-routing",
     PLUGIN / "skills/agent-context-budget",
+    KEEP_PLOT_PLUGIN / "skills/keep-plot",
 )
 
 
@@ -96,6 +98,7 @@ def validate(*, require_official: bool) -> None:
     for skill in SKILLS:
         run([sys.executable, str(skill_validator), str(skill)])
     run([sys.executable, str(plugin_validator), str(PLUGIN)])
+    run([sys.executable, str(plugin_validator), str(KEEP_PLOT_PLUGIN)])
     print("Repository tests and official Codex validators passed.")
 
 

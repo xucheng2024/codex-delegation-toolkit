@@ -1,0 +1,29 @@
+{
+  "name": "keep-plot",
+  "version": "0.1.0",
+  "description": "Compact this chat without losing the plot.",
+  "author": {
+    "name": "xucheng2024",
+    "url": "https://github.com/xucheng2024"
+  },
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "compact",
+    "keep-plot",
+    "context"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Keep Plot",
+    "shortDescription": "Compact this chat without losing the plot.",
+    "longDescription": "Save the decisions that still matter, drop dead history, then compact. Does not retrieve repositories or package child-agent handoffs.",
+    "developerName": "xucheng2024",
+    "category": "Productivity",
+    "capabilities": [
+      "Keep the plot",
+      "Safe compact"
+    ],
+    "defaultPrompt": "Use $keep-plot after a closed phase to save what still matters, then compact this thread."
+  }
+}
