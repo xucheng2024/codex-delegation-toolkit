@@ -14,7 +14,7 @@ These are targets, never truncation rules. Include all necessary material beyond
 
 1. Share references, not duplicated context: cite a stable path, symbol, diff hunk, evidence ID, command, or artifact hash instead of unchanged source, logs, or history.
 2. Review the delta only: use the contract, changed-file list, diff, deterministic results, and focused impact references—not the full repository or implementation conversation.
-3. In later rounds, send only conclusions added, changed, or invalidated, with anchors for retained facts.
+3. In later rounds, keep the original packet and append only conclusions added, changed, or invalidated, with anchors for retained facts. Do not rewrite the first packet.
 4. Use progressive disclosure: include the decision, required action, and accessible anchors. If the receiver cannot retrieve an anchor, include the necessary detail or return `INCOMPLETE`.
 5. Rank presentation by `impact × uncertainty × actionability`; this is an ordering heuristic, not a calibrated value or a reason to omit a material lower-ranked issue.
 

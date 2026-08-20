@@ -9,17 +9,46 @@ from pathlib import Path
 
 
 PREFIXES = {
-    "plan": """CACHE_HANDOFF_V1\nKIND: PLAN\nReturn a decision-ready implementation contract. Preserve hard constraints, name unresolved gaps, and do not invent missing evidence.\nRESULT: STATUS: APPROVE | CHANGES_REQUIRED | INCOMPLETE\nDYNAMIC_PACKET_JSON:\n""",
-    "execute": """CACHE_HANDOFF_V1\nKIND: EXECUTE\nImplement only the approved dynamic contract. Do not widen architecture; stop on missing constraints or material deviation. Report deterministic validation.\nRESULT: STATUS: APPROVE | CHANGES_REQUIRED | INCOMPLETE\nDYNAMIC_PACKET_JSON:\n""",
-    "review": """CACHE_HANDOFF_V1\nKIND: REVIEW\nReview only the supplied delta and report every material correctness, security, compatibility, or contract risk. Do not narrate unchanged code or reopen design exploration.\nRESULT:\nSTATUS: APPROVE | CHANGES_REQUIRED | INCOMPLETE\nFINDINGS: <none or severity | anchor | risk | mechanism | minimum fix>\nVALIDATION: <focused checks>\nOVERFLOW_REASON: none | <reason>\nDYNAMIC_PACKET_JSON:\n""",
+    "plan": """CACHE_HANDOFF_V1\nKIND: PLAN\nReturn a decision-ready implementation contract. Preserve hard constraints, name unresolved gaps, and do not invent missing evidence.\nRESULT: STATUS: APPROVE | CHANGES_REQUIRED | INCOMPLETE\nCONTRACT: Objective, Scope, Constraints/Risks, Acceptance, Retrieve/Escalate; name gaps.\nDYNAMIC_PACKET_JSON:\n""",
+    "execute": """CACHE_HANDOFF_V1\nKIND: EXECUTE\nImplement only the approved dynamic contract. Do not widen architecture; stop on missing constraints or material deviation. Report deterministic validation.\nRESULT: STATUS: APPROVE | CHANGES_REQUIRED | INCOMPLETE\nVALIDATION: focused checks; stop rather than widen or guess.\nDYNAMIC_PACKET_JSON:\n""",
+    "review": """CACHE_HANDOFF_V1\nKIND: REVIEW\nReview only the supplied delta and report every material correctness, security, compatibility, or contract risk. Do not narrate unchanged code or reopen design exploration. If the diff is in the packet, do not use tools or other skills; if only a locator is present, retrieve that locator only.\nRESULT:\nSTATUS: APPROVE | CHANGES_REQUIRED | INCOMPLETE\nFINDINGS: <none or severity | anchor | risk | mechanism | minimum fix>\nVALIDATION: <focused checks>\nOVERFLOW_REASON: none | <reason>\nDYNAMIC_PACKET_JSON:\n""",
 }
 
 
-def render(kind: str, dynamic_file: Path) -> str:
+def _keep_value(value: object) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        text = value.strip()
+        if not text or text == "None" or text.startswith("None —") or text.startswith("None -"):
+            return False
+    if isinstance(value, (list, dict)) and not value:
+        return False
+    return True
+
+
+def compact_packet(packet: dict) -> dict:
+    compacted = {key: value for key, value in packet.items() if _keep_value(value)}
+    if not compacted:
+        raise ValueError("dynamic packet must be a non-empty JSON object")
+    return compacted
+
+
+def dump_dynamic(packet: object) -> str:
+    if not isinstance(packet, dict) or not packet:
+        raise ValueError("dynamic packet must be a non-empty JSON object")
+    return json.dumps(compact_packet(packet), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
+
+
+def render_packet(kind: str, packet: dict) -> str:
     try:
         prefix = PREFIXES[kind]
     except KeyError as exc:
         raise ValueError(f"unknown handoff kind: {kind}") from exc
+    return prefix + dump_dynamic(packet)
+
+
+def render(kind: str, dynamic_file: Path) -> str:
     dynamic = dynamic_file.read_text(encoding="utf-8")
     if not dynamic.strip():
         raise ValueError("dynamic packet must not be empty")
@@ -27,9 +56,7 @@ def render(kind: str, dynamic_file: Path) -> str:
         packet = json.loads(dynamic)
     except json.JSONDecodeError as exc:
         raise ValueError(f"dynamic packet must be valid JSON: {exc.msg}") from exc
-    if not isinstance(packet, dict) or not packet:
-        raise ValueError("dynamic packet must be a non-empty JSON object")
-    return prefix + json.dumps(packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
+    return render_packet(kind, packet)
 
 
 def main() -> int:

@@ -62,12 +62,34 @@ class SkillContractTests(unittest.TestCase):
         for value in (
             "scripts/render_cache_handoff.py", "CACHE_HANDOFF_V1", "byte-identical",
             "DYNAMIC_PACKET_JSON", "encode its non-empty fields as one JSON object",
+            "append a delta message", "do not rewrite the original packet",
+            "Do not pad the prefix with filler",
         ):
             self.assertIn(value, ROUTER)
+
+    def test_budget_omits_inapplicable_fields_and_appends_deltas(self):
+        self.assertIn("Omit inapplicable fields", BUDGET)
+        self.assertNotIn("Fill every field", BUDGET)
+        self.assertNotIn("None — independent review of the diff only", BUDGET)
+        self.assertIn("Send only Scope, Constraints/Risks, Acceptance, and Anchors", BUDGET)
+        self.assertIn("If the diff text is already in the packet, do not invoke `$codex-speeder`", BUDGET)
+        self.assertIn("Keep the original packet message and append the delta", BUDGET)
+        self.assertIn("do not rewrite the first packet", BUDGET)
+
+    def test_handoff_later_rounds_append(self):
+        self.assertIn("keep the original packet and append", HANDOFF)
+        self.assertIn("Do not rewrite the first packet", HANDOFF)
 
     def test_router_still_refers_to_current_accelerator(self):
         self.assertNotIn("$token-saver", ROUTER + BUDGET + HANDOFF)
         self.assertIn("$codex-speeder", ROUTER)
+
+    def test_cache_prefix_eval_uses_renderer_and_cache_fields(self):
+        eval_source = (ROOT / "experiments/cache_prefix_eval.py").read_text(encoding="utf-8")
+        self.assertIn("load_renderer", eval_source)
+        self.assertIn("render_packet", eval_source)
+        self.assertIn("cache_usage", eval_source)
+        self.assertNotIn("PREFIX =", eval_source)
 
 
 if __name__ == "__main__":

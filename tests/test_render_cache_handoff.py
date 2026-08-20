@@ -48,3 +48,34 @@ class CacheHandoffTests(unittest.TestCase):
             dynamic.write_text("not json", encoding="utf-8")
             with self.assertRaises(ValueError):
                 renderer.render("review", dynamic)
+
+    def test_plan_and_execute_prefixes_stay_short_with_result_schema(self):
+        renderer = load_renderer()
+        plan = renderer.PREFIXES["plan"]
+        execute = renderer.PREFIXES["execute"]
+        self.assertTrue(plan.startswith("CACHE_HANDOFF_V1\nKIND: PLAN\n"))
+        self.assertTrue(execute.startswith("CACHE_HANDOFF_V1\nKIND: EXECUTE\n"))
+        self.assertIn("CONTRACT: Objective, Scope, Constraints/Risks, Acceptance, Retrieve/Escalate; name gaps.", plan)
+        self.assertIn("VALIDATION: focused checks; stop rather than widen or guess.", execute)
+        self.assertIn("If the diff is in the packet, do not use tools or other skills", renderer.PREFIXES["review"])
+        self.assertLess(len(renderer.PREFIXES["review"]), 800)
+
+    def test_render_packet_matches_file_render(self):
+        renderer = load_renderer()
+        with tempfile.TemporaryDirectory() as directory:
+            dynamic = Path(directory) / "packet.json"
+            dynamic.write_text('{"scope":"one"}', encoding="utf-8")
+            self.assertEqual(renderer.render("plan", dynamic), renderer.render_packet("plan", {"scope": "one"}))
+
+    def test_dump_strips_none_filler_and_empty_values(self):
+        renderer = load_renderer()
+        packet = {
+            "scope": "app/auth.py",
+            "objective": "None — independent review of the diff only",
+            "deliverable": "",
+            "evidence": None,
+            "anchors": "diff --git a/app/auth.py",
+        }
+        rendered = renderer.render_packet("review", packet)
+        suffix = rendered[len(renderer.PREFIXES["review"]):]
+        self.assertEqual(suffix, '{"anchors":"diff --git a/app/auth.py","scope":"app/auth.py"}\n')
