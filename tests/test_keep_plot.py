@@ -15,6 +15,10 @@ SKILL = PLUGIN / "skills/keep-plot"
 
 
 class KeepPlotTests(unittest.TestCase):
+    def test_readme_documents_public_install(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("codex plugin add keep-plot@codex-delegation-toolkit", readme)
+
     def test_lives_outside_the_toolkit_plugin(self):
         self.assertTrue((PLUGIN / ".codex-plugin/plugin.json").is_file())
         self.assertFalse((TOOLKIT / "skills/keep-plot").exists())
