@@ -9,14 +9,14 @@ Budget only the context deliberately supplied in a handoff. Do not claim to remo
 
 ## Choose history scope
 
-- Use `fork_turns: "none"` for executors, economy top-level threads, and independent reviewers by default.
-- For planners or adjudicators, preserve the user's material wording and use the smallest bounded recent history that affects the decision.
+- Use `fork_turns: "none"` for planners, executors, economy top-level threads, and independent reviewers by default. Do not assume parent skill context is inherited.
+- Include the user's material wording in the packet when it affects the decision instead of forwarding planner or parent history.
 - Use full history only when compaction would create material ambiguity and privacy permits sharing it.
 - Follow the active routing policy. Do not select the agent, model, or delegation strategy here.
 
 ## Send one complete capsule
 
-Use these labels exactly and in this order. Include a field only when it changes the recipient's allowed action. Omit inapplicable fields; do not fill them with `None — <reason>`. Kind already implies `History scope: none` for execute, review, and economy threads.
+Use these labels exactly and in this order. Include a field only when it changes the recipient's allowed action. Omit inapplicable fields; do not fill them with `None — <reason>`. Kind already implies `History scope: none` for plan, execute, review, and economy threads.
 
 ```text
 History scope: none | bounded (<reason>) | full (<reason>)
@@ -33,7 +33,11 @@ Acceptance:
 Retrieve/Escalate: first retrieval action, escalation triggers, and delta limit
 ```
 
-For plan, execute, and economy packets, Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate must be concrete. Include Anchors and Evidence when they exist. Include User request (verbatim) when the wording affects the decision.
+Pre-exploration **plan** packets from a parent that has not inspected the repo stay thin: User request (verbatim), user-stated Constraints/Risks, and Retrieve/Escalate. Omit parent-invented Scope, Anchors, Evidence, and Acceptance. The Sol planner inspects the repo, loads matching task skills, and writes anchors, scope, and acceptance.
+
+**execute** packets carry the approved planner contract. Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate must be concrete. Terra retrieves named anchors first and does not re-plan or re-discover the repo.
+
+**economy** packets still require Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate to be concrete. Include Anchors and Evidence when they exist. Include User request (verbatim) when the wording affects the decision.
 
 Use `Routine` for bounded, reversible, single-component work; target at most roughly 800 capsule tokens and eight anchors. Use `Expanded` for public interfaces, security, privacy, financial, persistence, concurrency, compatibility, destructive actions, or material ambiguity; target roughly 1,500 capsule tokens and twelve anchors. These are soft handoff defaults, not hard correctness limits or claims about total recipient context.
 
@@ -45,7 +49,7 @@ Use `Routine` for bounded, reversible, single-component work; target at most rou
 - Mark truncation, stale snapshots, omissions, and uncertain coverage.
 - Keep a parent preference only in `Parent hypothesis`, label it non-binding, and ask a planner to challenge it independently.
 - When `$codex-speeder` is available, pass its evidence IDs and exact `expand` or `read-source` command. Otherwise use bounded paths, symbols, searches, and commands.
-- For an independent reviewer, do not forward the planner or executor capsule. Send only Scope, Constraints/Risks, Acceptance, and Anchors (diff locator). Include deterministic results when present. Omit every other field. Do not include implementation narrative, planner reasoning, or a parent hypothesis. If the diff text is already in the packet, do not invoke `$codex-speeder` or other skills.
+- For an independent reviewer, do not forward the planner or executor capsule. Send only Scope, Constraints/Risks, Acceptance, and Anchors (diff locator). Include deterministic results when present. Omit every other field. Do not include implementation narrative, planner reasoning, or a parent hypothesis. If the diff text is already in the packet, do not invoke `$codex-speeder` for bulk retrieval. The reviewer still independently loads matching task skills.
 
 Never include credentials, tokens, private keys, session data, cookies, secret-bearing environment values, unrelated conversation, customer data, or unnecessary personal information.
 
@@ -57,6 +61,6 @@ Allow at most two focused delta rounds by default. Each delta must name the bloc
 
 ## Validate the handoff
 
-Before sending, verify required live fields for the kind are present and concrete, omitted fields are truly inapplicable, user wording is bounded and preserved when included, scope and authority are explicit, observed claims have fresh locators, hypotheses remain non-binding, acceptance is testable, and privacy is protected.
+Before sending, verify required live fields for the kind are present and concrete, omitted fields are truly inapplicable (including parent-invented plan fields), user wording is bounded and preserved when included, scope and authority are explicit when the kind requires them, observed claims have fresh locators, hypotheses remain non-binding, acceptance is testable when present, and privacy is protected.
 
 Ask the recipient to report its outcome, evidence consulted, validation performed, and unresolved gaps. Keep final integration and deterministic validation with the parent. For an economy top-level thread, treat Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate as a stop-or-guess contract: name the finished state, in-scope files, forbidden changes, proof of completion, and the missing decision that must halt work. Do not fill those fields with `None —` unless genuinely inapplicable; a missing required field means the contract is incomplete.

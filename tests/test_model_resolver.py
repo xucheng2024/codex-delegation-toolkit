@@ -165,28 +165,35 @@ class RoutingMatrixTests(unittest.TestCase):
             ("hard_without_contract_stays_terra", "implement", sol, False, False, False, False, True, "spawn", terra, "medium"),
             ("terra_parent_bounded_implement", "implement", terra, False, False, True, False, False, "parent", terra, "medium"),
             ("terra_parent_complete_contract", "implement", terra, False, False, False, True, False, "parent", terra, "medium"),
+            ("explicit_sol_pin_implement", "implement", sol, True, False, True, True, True, "spawn", terra, "medium"),
+            ("sol_pin_permits_terra_implement", "implement", sol, True, True, True, True, False, "spawn", terra, "medium"),
+            ("terra_parent_sol_pin_implement", "implement", terra, True, False, False, False, False, "parent", terra, "medium"),
+            ("terra_parent_plan", "plan", terra, False, False, False, False, False, "spawn", sol, "medium"),
+            ("sol_parent_plans_itself", "plan", sol, False, False, False, False, False, "parent", sol, "medium"),
+            ("sol_pin_plan", "plan", terra, True, False, False, False, False, "spawn", sol, "medium"),
             ("hard_trigger_design", "judge", terra, False, False, False, False, False, "spawn", sol, "medium"),
             ("independent_review", "judge", terra, False, False, True, False, False, "spawn", sol, "medium"),
             ("sol_pinned_review_is_independent", "judge", sol, True, False, True, True, False, "spawn", sol, "medium"),
-            ("explicit_sol_pin_implement", "implement", sol, True, False, True, True, True, "parent", sol, "medium"),
-            ("sol_pin_permits_terra_implement", "implement", sol, True, True, True, True, False, "spawn", terra, "medium"),
             ("sol_unavailable", "judge", terra, False, False, False, False, False, "ask", sol, "medium"),
+            ("plan_sol_unavailable", "plan", terra, False, False, False, False, False, "ask", sol, "medium"),
         )
         sol_spawns = 0
         for name, step, parent, pin, permit, bounded, complete, hard, action, model, effort in cases:
-            models = {terra} if name == "sol_unavailable" else available
+            models = {terra} if action == "ask" else available
             result = router.decide(step, parent, pin, permit, models, roles, bounded, complete, hard)
             self.assertEqual(result["action"], action, name)
             self.assertEqual(result["model"], model, name)
             self.assertEqual(result["effort"], effort, name)
             if action == "spawn":
-                self.assertEqual(result.get("spawn"), action == "spawn", name)
-            if name == "sol_unavailable":
-                self.assertEqual(result["status"], "ask")
-                self.assertNotEqual(result["model"], terra)
+                self.assertEqual(result.get("spawn"), True, name)
+            if action == "ask":
+                self.assertEqual(result["status"], "ask", name)
+                self.assertNotEqual(result["model"], terra, name)
+            if step == "implement":
+                self.assertEqual(result["model"], terra, name)
             if action == "spawn" and model == sol:
                 sol_spawns += 1
-        self.assertEqual(sol_spawns, 3)
+        self.assertEqual(sol_spawns, 5)
 
 
 if __name__ == "__main__":

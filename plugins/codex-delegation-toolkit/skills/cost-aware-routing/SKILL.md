@@ -5,47 +5,53 @@ description: Route ambiguous, cross-cutting, or high-risk software work between 
 
 # Cost-Aware Routing
 
-Keep the parent responsible for coordination, deterministic validation, and delivery. Route a step by what it must decide or do, not by the parent model.
+Keep the parent responsible for coordination, deterministic validation, and delivery. Route a step by what it must decide or do, not by the parent model. `quality_first` (Sol) plans and independently reviews; `balanced` (Terra) implements. Sol never edits.
 
 Read `references/model-role-map.json` for default ids. Read [references/model-routing.md](references/model-routing.md) only when resolving a runtime catalog, model availability, transport, or effort details.
 
 ## Classify
 
+Classify from the user request only. Do not read the repo, search, or draft a plan before the routing decision.
+
 Hard triggers: security/authorization/secrets/destructive operations; billing or irreversible external action; concurrency, persistence, migration, recovery, or incident; public protocol/interface/backward compatibility.
 
 Soft triggers: unclear success criteria; unknown implementation location; more than two plausible subsystems; uncertain dependency impact; materially different designs.
 
-With no hard trigger and fewer than two soft triggers, stay on the parent. Otherwise use one deeper planner. A `quality_first` parent plans itself; independent review must still use a fresh instance.
+`--sol-pin` is an explicit user Sol pin, not a runtime default, family alias, or inherited model. It forces Sol plan plus review; it does not make Sol implement. `--terra-permit` skips the Sol planner; if no Sol plan ran, Terra self-reviews.
 
-## Routing contract
+## Flow
 
-`quality_first` handles architecture, hard risk, and independent review; `balanced` implements and debugs.
+- Simple (no hard trigger, fewer than two soft triggers, no `--sol-pin`): Terra `--step implement`, then Terra self-reviews its diff. Do not spawn Sol.
+- Hard, two-plus soft, or `--sol-pin`: `--step plan`, Terra `--step implement` from the approved contract with no second plan, then a fresh `--step judge`.
+- A `quality_first` parent plans itself. A `judge` must be a fresh spawned `quality_first` instance; never resume the planner.
 
-An explicit user Sol pin applies to all task work unless the user explicitly permits Terra delegation. A runtime default, family alias, or inherited model is not a pin.
-
-A contract is complete only when Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate are concrete.
-
-For every `implement` or `judge` step, classify `--sol-pin`, `--terra-permit`, `--bounded`, `--contract-complete`, and `--hard-packet`, then run:
+For every `plan`, `implement`, or `judge` step, classify `--sol-pin`, `--terra-permit`, `--bounded`, `--contract-complete`, and `--hard-packet`, then run:
 
 ```bash
-python scripts/route_step.py --step <implement|judge> --parent <model> \
+python scripts/route_step.py --step <plan|implement|judge> --parent <model> \
   [--sol-pin] [--terra-permit] [--bounded] [--contract-complete] \
   [--hard-packet] --available <model> [<model> ...]
 ```
 
-Honor the script output for action, model, and effort; do not re-derive the matrix. A `judge` must be a fresh spawned `quality_first` instance. If the chosen target is unavailable, disclose the gap and ask once or name an explicit degrade; never silently substitute a model.
+Honor the script output for action, model, and effort; do not re-derive the matrix. If the chosen target is unavailable, disclose the gap and ask once or name an explicit degrade; never silently substitute a model.
 
 Use at most one planner. Do not delegate routine restatement or self-review. Use deterministic tests and linters as primary verification.
 
+## Child skill loading
+
+Each spawned Sol agent must independently discover/load any skill whose trigger matches its task. Do not assume parent skill context is inherited. Do not re-invoke `$cost-aware-routing` or `$agent-context-budget`. Domain and task skills are in scope.
+
+The Sol planner is read-only and may inspect the repo. It loads matching task skills, then writes anchors, scope, and acceptance. Do not invent those fields on the parent to complete a plan packet.
+
 ## Review gate
 
-After any non-Sol hard-trigger implementation, request one fresh read-only `quality_first` diff review, even if Sol planned. Terra work triggered only by soft complexity may skip it only with a complete contract, no material deviation, and passing deterministic validation.
+After a Sol-planned or `--sol-pin` path, request one fresh read-only `quality_first` diff review. Do not resume the planner. Pass the approved contract, changed-file list, diff, deterministic results, and focused caller/configuration/test impact references when relevant. The reviewer independently loads matching task skills, then reports any material correctness, security, compatibility, or contract risk, plus regression or missing-test issues; it must not edit or reopen design exploration. Terra applies findings once, reruns focused validation, and stops unless a hard-risk finding or failed validation creates a new delta.
 
-Pass the approved contract, changed-file list, diff, deterministic results, and focused caller/configuration/test impact references when relevant. The reviewer may report any material correctness, security, compatibility, or contract risk; it must not reopen design exploration. Fix concrete findings once, rerun focused validation, and stop unless a hard-risk finding or failed validation creates a new delta.
+Terra-only simple work: Terra reviews its own diff. Do not spawn Sol for plan or judge.
 
 ## Handoffs
 
-After deciding to delegate, invoke `$agent-context-budget`; do not invoke it when work remains on the parent. Use no-history executor/reviewer handoffs unless exact user wording matters. Pass `$codex-speeder` evidence IDs and retrieval commands when available. Never send credentials, secrets, cookies, or raw secret-bearing logs.
+After deciding to delegate, invoke `$agent-context-budget`; do not invoke it when work remains on the parent. Use no-history planner, executor, and reviewer handoffs unless exact user wording matters. Pass `$codex-speeder` evidence IDs and retrieval commands when available. Never send credentials, secrets, cookies, or raw secret-bearing logs.
 
 Put stable instructions before every task-specific packet. After creating the dynamic capsule, encode its non-empty fields as one JSON object and render it with `scripts/render_cache_handoff.py --kind <plan|execute|review> --dynamic-file <capsule.json>`; pass the result unchanged to the child. The renderer canonicalizes JSON key order and whitespace. The `CACHE_HANDOFF_V1` prefix must be byte-identical across same-kind requests; put task text, diff, logs, failures, evidence IDs, and changed conclusions only after `DYNAMIC_PACKET_JSON`. Do not pad the prefix with filler: one-shot GPT-5.6 calls sharing this prefix still wrote nearly the full input and read 0 cached tokens. For a follow-up on the same child, append a delta message; do not rewrite the original packet.
 

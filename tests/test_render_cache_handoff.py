@@ -57,7 +57,11 @@ class CacheHandoffTests(unittest.TestCase):
         self.assertTrue(execute.startswith("CACHE_HANDOFF_V1\nKIND: EXECUTE\n"))
         self.assertIn("CONTRACT: Objective, Scope, Constraints/Risks, Acceptance, Retrieve/Escalate; name gaps.", plan)
         self.assertIn("VALIDATION: focused checks; stop rather than widen or guess.", execute)
-        self.assertIn("If the diff is in the packet, do not use tools or other skills", renderer.PREFIXES["review"])
+        self.assertIn("Independently load matching task skills; do not assume parent skill context is inherited", plan)
+        self.assertIn("Do not re-plan. Retrieve named anchors first.", execute)
+        self.assertIn("Fresh review: no planner context", renderer.PREFIXES["review"])
+        self.assertIn("Independently load matching task skills", renderer.PREFIXES["review"])
+        self.assertNotIn("do not use tools or other skills", renderer.PREFIXES["review"])
         self.assertLess(len(renderer.PREFIXES["review"]), 800)
 
     def test_render_packet_matches_file_render(self):

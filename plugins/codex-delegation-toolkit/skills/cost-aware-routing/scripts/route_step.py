@@ -11,7 +11,7 @@ from typing import Any
 
 
 ROLE_MAP_SCHEMA = "codex-model-role-map-v1"
-STEPS = ("implement", "judge")
+STEPS = ("plan", "implement", "judge")
 OUTPUT_SCHEMA = "codex-step-routing-v1"
 
 
@@ -52,18 +52,15 @@ def decide(
     hard_packet: bool = False,
 ) -> dict[str, Any]:
     if step not in STEPS:
-        raise RouteError("step must be implement or judge")
+        raise RouteError("step must be plan, implement, or judge")
     sol = roles["quality_first"]
     terra = roles["balanced"]
     if step == "judge":
-        # Reviews must be independent, including when the parent is Sol-pinned.
+        # Reviews must be a fresh spawn, including when the parent is Sol.
         target, role, actor = sol, "quality_first", "spawn"
-    elif sol_pin and not terra_permit:
+    elif step == "plan":
         target, role = sol, "quality_first"
         actor = "parent" if parent == sol else "spawn"
-    elif sol_pin:
-        target, role = terra, "balanced"
-        actor = "parent" if parent == terra else "spawn"
     elif parent == terra:
         target, role, actor = terra, "balanced", "parent"
     else:
