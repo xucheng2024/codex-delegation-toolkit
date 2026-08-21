@@ -35,7 +35,7 @@ Retrieve/Escalate: first retrieval action, escalation triggers, and delta limit
 
 Pre-exploration **plan** packets from a parent that has not inspected the repo stay thin: User request (verbatim), user-stated Constraints/Risks, and Retrieve/Escalate. Omit parent-invented Scope, Anchors, Evidence, and Acceptance. The Sol planner inspects the repo, loads matching task skills, and writes anchors, scope, and acceptance.
 
-**execute** packets carry the approved planner contract. Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate must be concrete. Terra retrieves named anchors first and does not re-plan or re-discover the repo.
+**execute** packets are only for a spawned implementer. If `route_step` says `implement` / `parent`, do not build an execute packet; implement from the Sol contract in-thread. When spawning, execute packets carry the approved planner contract. Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate must be concrete. Terra retrieves named anchors first and does not re-plan or re-discover the repo.
 
 **economy** packets still require Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate to be concrete. Include Anchors and Evidence when they exist. Include User request (verbatim) when the wording affects the decision.
 

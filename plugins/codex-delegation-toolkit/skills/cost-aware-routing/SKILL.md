@@ -33,9 +33,9 @@ python scripts/route_step.py --step <plan|implement|judge> --parent <model> \
   [--hard-packet] --available <model> [<model> ...]
 ```
 
-Honor the script output for action, model, and effort; do not re-derive the matrix. If the chosen target is unavailable, disclose the gap and ask once or name an explicit degrade; never silently substitute a model.
+Honor the script output for action, model, and effort; do not re-derive the matrix. If action is `parent`, do not invoke `$agent-context-budget` and do not render an execute capsule; implement from the Sol contract already in this thread. If the chosen target is unavailable, disclose the gap and ask once or name an explicit degrade; never silently substitute a model.
 
-Use at most one planner. Do not delegate routine restatement or self-review. Use deterministic tests and linters as primary verification.
+Use at most one planner. Do not delegate routine restatement or self-review. Use deterministic tests and linters as primary verification. After a Sol plan or review returns, keep only `STATUS` plus the contract or `FINDINGS`; drop spawn tool logs and planner prose before the next step.
 
 ## Child skill loading
 
@@ -51,7 +51,7 @@ Terra-only simple work: Terra reviews its own diff. Do not spawn Sol for plan or
 
 ## Handoffs
 
-After deciding to delegate, invoke `$agent-context-budget`; do not invoke it when work remains on the parent. Use no-history planner, executor, and reviewer handoffs unless exact user wording matters. Pass `$codex-speeder` evidence IDs and retrieval commands when available. Never send credentials, secrets, cookies, or raw secret-bearing logs.
+After deciding to spawn a child, invoke `$agent-context-budget`; do not invoke it when work remains on the parent, including Terra `--step implement` after a Sol plan. Use no-history planner, executor, and reviewer handoffs unless exact user wording matters. Pass `$codex-speeder` evidence IDs and retrieval commands when available. Never send credentials, secrets, cookies, or raw secret-bearing logs.
 
 Put stable instructions before every task-specific packet. After creating the dynamic capsule, encode its non-empty fields as one JSON object and render it with `scripts/render_cache_handoff.py --kind <plan|execute|review> --dynamic-file <capsule.json>`; pass the result unchanged to the child. The renderer canonicalizes JSON key order and whitespace. The `CACHE_HANDOFF_V1` prefix must be byte-identical across same-kind requests; put task text, diff, logs, failures, evidence IDs, and changed conclusions only after `DYNAMIC_PACKET_JSON`. Do not pad the prefix with filler: one-shot GPT-5.6 calls sharing this prefix still wrote nearly the full input and read 0 cached tokens. For a follow-up on the same child, append a delta message; do not rewrite the original packet.
 

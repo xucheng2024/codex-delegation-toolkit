@@ -28,6 +28,9 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("after routing is decided", description)
         self.assertIn("invoke `$agent-context-budget`", ROUTER)
         self.assertIn("do not invoke it when work remains on the parent", ROUTER)
+        self.assertIn("If action is `parent`, do not invoke `$agent-context-budget`", ROUTER)
+        self.assertIn("do not render an execute capsule", ROUTER)
+        self.assertIn("keep only `STATUS` plus the contract or `FINDINGS`", ROUTER)
 
     def test_budget_contract_is_stable(self):
         self.assertIn("Do not use for ordinary single-agent work", BUDGET)
@@ -119,6 +122,8 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("If the diff text is already in the packet, do not invoke `$codex-speeder`", BUDGET)
         self.assertIn("The reviewer still independently loads matching task skills", BUDGET)
         self.assertIn("Pre-exploration **plan** packets", BUDGET)
+        self.assertIn("**execute** packets are only for a spawned implementer", BUDGET)
+        self.assertIn("do not build an execute packet", BUDGET)
         self.assertIn("Omit parent-invented Scope, Anchors, Evidence, and Acceptance", BUDGET)
         self.assertIn("Do not assume parent skill context is inherited", BUDGET)
         self.assertIn("Keep the original packet message and append the delta", BUDGET)
