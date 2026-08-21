@@ -61,8 +61,10 @@ class SkillContractTests(unittest.TestCase):
 
     def test_router_classifies_before_read_and_keeps_sol_from_editing(self):
         for value in (
-            "Classify from the user request only",
-            "Do not read the repo, search, or draft a plan before the routing decision",
+            "Classify from the user request and already-provided context only",
+            "Do not read or search the repo, and do not draft an implementation plan, before the routing decision",
+            "Count each distinct uncertainty once; file count alone is not a trigger",
+            "the action, not every nearby file",
             "Sol never edits",
             "It forces Sol plan plus review; it does not make Sol implement",
             "from the approved contract with no second plan",

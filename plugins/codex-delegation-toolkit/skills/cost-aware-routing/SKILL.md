@@ -11,18 +11,18 @@ Read `references/model-role-map.json` for default ids. Read [references/model-ro
 
 ## Classify
 
-Classify from the user request only. Do not read the repo, search, or draft a plan before the routing decision.
+Classify from the user request and already-provided context only (named files, diffs, errors, and constraints already in the thread). Do not read or search the repo, and do not draft an implementation plan, before the routing decision. Count each distinct uncertainty once; file count alone is not a trigger.
 
-Hard triggers: security/authorization/secrets/destructive operations; billing or irreversible external action; concurrency, persistence, migration, recovery, or incident; public protocol/interface/backward compatibility.
+Hard triggers: security, authorization, secrets, or destructive operations; billing, money movement, trading execution, or irreversible/high-cost external actions (the action, not every nearby file); concurrency, persistence, migration, recovery, or incident handling; public protocol, interface, schema, or compatibility changes.
 
-Soft triggers: unclear success criteria; unknown implementation location; more than two plausible subsystems; uncertain dependency impact; materially different designs.
+Soft triggers, only when not already identifiable from the request or provided context: success criteria are unclear; implementation location is not identifiable; the work plausibly spans more than two subsystems or has broad/uncertain dependency impact; materially different valid designs exist.
 
 `--sol-pin` is an explicit user Sol pin, not a runtime default, family alias, or inherited model. It forces Sol plan plus review; it does not make Sol implement. `--terra-permit` skips the Sol planner; if no Sol plan ran, Terra self-reviews.
 
 ## Flow
 
-- Simple (no hard trigger, fewer than two soft triggers, no `--sol-pin`): Terra `--step implement`, then Terra self-reviews its diff. Do not spawn Sol.
-- Hard, two-plus soft, or `--sol-pin`: `--step plan`, Terra `--step implement` from the approved contract with no second plan, then a fresh `--step judge`.
+- Simple (no hard trigger, fewer than two soft triggers, no `--sol-pin`): Terra `--step implement`, runs focused validation, then Terra self-reviews its diff. Do not spawn Sol.
+- Hard, two-plus soft, or `--sol-pin`: `--step plan`, Terra `--step implement` from the approved contract with no second plan, focused validation, then a fresh `--step judge`.
 - A `quality_first` parent plans itself. A `judge` must be a fresh spawned `quality_first` instance; never resume the planner.
 
 For every `plan`, `implement`, or `judge` step, classify `--sol-pin`, `--terra-permit`, `--bounded`, `--contract-complete`, and `--hard-packet`, then run:
