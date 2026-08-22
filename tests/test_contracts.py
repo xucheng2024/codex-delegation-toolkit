@@ -52,6 +52,17 @@ class SkillContractTests(unittest.TestCase):
         ):
             self.assertIn(value, ROUTER)
 
+    def test_router_uses_verifier_gated_escalation(self):
+        for value in (
+            "scripts/escalate_step.py",
+            "Do not use self-reported confidence",
+            "First-pass `route_step` effort is always `medium`",
+            "scripts/record_compute.py",
+            "Terra applies findings once and stops",
+            "do not run `escalate_step.py` again",
+        ):
+            self.assertIn(value, ROUTER)
+
     def test_router_keeps_independent_review_gate(self):
         for value in (
             "After a Sol-planned or `--sol-pin` path",

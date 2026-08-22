@@ -37,6 +37,7 @@ def load_role_map(path: Path) -> dict[str, str]:
 
 
 def effort_for(role: str, hard_packet: bool) -> str:
+    # First pass is always medium. Post-verifier upgrades use escalate_step.py.
     return "medium"
 
 

@@ -21,9 +21,18 @@ Soft triggers, only when not already identifiable from the request or provided c
 
 ## Flow
 
-- Simple (no hard trigger, fewer than two soft triggers, no `--sol-pin`): Terra `--step implement`, runs focused validation, then Terra self-reviews its diff. Do not spawn Sol.
-- Hard, two-plus soft, or `--sol-pin`: `--step plan`, Terra `--step implement` from the approved contract with no second plan, focused validation, then a fresh `--step judge`.
+- Simple (no hard trigger, fewer than two soft triggers, no `--sol-pin`): Terra `--step implement`, runs focused validation, then honor `escalate_step.py`. If it says `stop`, Terra self-reviews its diff. Do not spawn Sol for plan.
+- Hard, two-plus soft, or `--sol-pin`: `--step plan`, Terra `--step implement` from the approved contract with no second plan, focused validation, then honor `escalate_step.py`. After implement stops or a high retry is exhausted, request a fresh `--step judge`.
 - A `quality_first` parent plans itself. A `judge` must be a fresh spawned `quality_first` instance; never resume the planner.
+
+First-pass `route_step` effort is always `medium`. After `implement`, run focused deterministic validation (tests, compiler, linters, schema, or `STATUS: INCOMPLETE`). Do not use self-reported confidence. Then run:
+
+```bash
+python scripts/escalate_step.py --step implement --current-effort <medium|high> \
+  --verifier <pass|fail|incomplete> --parent <model> --available <model> [<model> ...]
+```
+
+Honor that output; do not re-derive an upgrade. `action=retry` is one Terra `implement` at `high`, then validate and run `escalate_step.py` again. `action=spawn` is a fresh `--step judge`. After judge `CHANGES_REQUIRED`, Terra applies findings once and stops; do not run `escalate_step.py` again. Record each decision with `scripts/record_compute.py` (no prompts, diffs, paths, or secrets).
 
 For every `plan`, `implement`, or `judge` step, classify `--sol-pin`, `--terra-permit`, `--bounded`, `--contract-complete`, and `--hard-packet`, then run:
 
@@ -33,7 +42,7 @@ python scripts/route_step.py --step <plan|implement|judge> --parent <model> \
   [--hard-packet] --available <model> [<model> ...]
 ```
 
-Honor the script output for action, model, and effort; do not re-derive the matrix. If action is `parent`, do not invoke `$agent-context-budget` and do not render an execute capsule; implement from the Sol contract already in this thread. If the chosen target is unavailable, disclose the gap and ask once or name an explicit degrade; never silently substitute a model.
+Honor the script output for action, model, and effort; do not re-derive the matrix. First-pass effort is `medium`; later effort comes only from `escalate_step.py`. If action is `parent`, do not invoke `$agent-context-budget` and do not render an execute capsule; implement from the Sol contract already in this thread. If the chosen target is unavailable, disclose the gap and ask once or name an explicit degrade; never silently substitute a model.
 
 Use at most one planner. Do not delegate routine restatement or self-review. Use deterministic tests and linters as primary verification. After a Sol plan or review returns, keep only `STATUS` plus the contract or `FINDINGS`; drop spawn tool logs and planner prose before the next step.
 
@@ -47,7 +56,7 @@ The Sol planner is read-only and may inspect the repo. It loads matching task sk
 
 After a Sol-planned or `--sol-pin` path, request one fresh read-only `quality_first` diff review. Do not resume the planner. Pass the approved contract, changed-file list, diff, deterministic results, and focused caller/configuration/test impact references when relevant. The reviewer independently loads matching task skills, then reports any material correctness, security, compatibility, or contract risk, plus regression or missing-test issues; it must not edit or reopen design exploration. Terra applies findings once, reruns focused validation, and stops unless a hard-risk finding or failed validation creates a new delta.
 
-Terra-only simple work: Terra reviews its own diff. Do not spawn Sol for plan or judge.
+Terra-only simple work: Terra reviews its own diff when `escalate_step.py` says `stop`. Do not spawn Sol for plan on the simple path. Spawn Sol for judge only when `escalate_step.py` says `spawn`.
 
 ## Handoffs
 
