@@ -120,8 +120,11 @@ class SkillContractTests(unittest.TestCase):
         for value in (
             "scripts/render_cache_handoff.py", "CACHE_HANDOFF_V1", "byte-identical",
             "DYNAMIC_PACKET_JSON", "encode its non-empty fields as one JSON object",
-            "append a delta message", "do not rewrite the original packet",
+            "append a delta message or `codex queue`", "do not rewrite the original packet",
+            "do not respawn", "do not rebuild the capsule",
             "Do not pad the prefix with filler",
+            'Keep `fork_turns: "none"`',
+            "alternate approach",
         ):
             self.assertIn(value, ROUTER)
 
@@ -139,6 +142,9 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("Do not assume parent skill context is inherited", BUDGET)
         self.assertIn("Keep the original packet message and append the delta", BUDGET)
         self.assertIn("do not rewrite the first packet", BUDGET)
+        self.assertIn("A same-child `codex queue` message is a delta, not a new capsule", BUDGET)
+        self.assertIn("short new instruction, not a rebuilt capsule", BUDGET)
+        self.assertIn('Use `fork_turns: "none"`', BUDGET)
 
     def test_handoff_later_rounds_append(self):
         self.assertIn("keep the original packet and append", HANDOFF)

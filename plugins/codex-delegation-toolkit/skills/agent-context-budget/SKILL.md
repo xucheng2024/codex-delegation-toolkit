@@ -11,6 +11,7 @@ Budget only the context deliberately supplied in a handoff. Do not claim to remo
 
 - Use `fork_turns: "none"` for planners, executors, economy top-level threads, and independent reviewers by default. Do not assume parent skill context is inherited.
 - Include the user's material wording in the packet when it affects the decision instead of forwarding planner or parent history.
+- Use host `fork` or `fork_turns: "all"` only to branch an alternate approach from the current session; send a short new instruction, not a rebuilt capsule.
 - Use full history only when compaction would create material ambiguity and privacy permits sharing it.
 - Follow the active routing policy. Do not select the agent, model, or delegation strategy here.
 
@@ -57,7 +58,7 @@ Never include credentials, tokens, private keys, session data, cookies, secret-b
 
 Require the recipient to retrieve accessible evidence before requesting more. Add a focused delta only when an anchor is inaccessible, a named ambiguity could change the result, evidence is stale or truncated, or direct proof is needed for elevated risk.
 
-Allow at most two focused delta rounds by default. Each delta must name the blocker, smallest missing fact, and expected effect. Keep the original packet message and append the delta; do not rewrite the first packet. After two unresolved deltas, report the gap and let the parent rescope or explicitly expand the budget.
+Allow at most two focused delta rounds by default. Each delta must name the blocker, smallest missing fact, and expected effect. Keep the original packet message and append the delta; do not rewrite the first packet. A same-child `codex queue` message is a delta, not a new capsule. After two unresolved deltas, report the gap and let the parent rescope or explicitly expand the budget.
 
 ## Validate the handoff
 
