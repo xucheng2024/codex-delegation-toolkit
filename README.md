@@ -11,6 +11,19 @@ The toolkit skills are distributed together but keep separate trigger boundaries
 
 Model names and vendor prices are not hard-coded. An optional deterministic resolver accepts a trusted catalog of availability, capability, and normalized cost tiers, validates overrides and ceilings, and fails closed when a role cannot be selected reliably.
 
+## Pre-model CLI routing
+
+For a new non-interactive task, the bundled launcher selects the entry model before `codex exec` makes its first model call. It reads the local Codex model catalog, uses trusted bounded structural counts, and adds a small routing receipt so the selected agent does not repeat the routing workflow:
+
+```bash
+python plugins/codex-delegation-toolkit/skills/cost-aware-routing/scripts/launch_codex.py \
+  --A 1 --B 0 --U 0 --preflight-complete \
+  --prompt "Fix the named parser edge case and run its focused tests." \
+  -- --sandbox workspace-write
+```
+
+`A`, `B`, and `U` follow the definitions in `references/complexity-model.md`. Use `--select-only` to inspect the selection without starting Codex. The launcher is intentionally limited to new `codex exec` turns; an already-started desktop or IDE conversation has already paid for its first model call. The routing skill therefore disables implicit invocation but remains available through explicit `$cost-aware-routing` use.
+
 ## Install
 
 ```bash

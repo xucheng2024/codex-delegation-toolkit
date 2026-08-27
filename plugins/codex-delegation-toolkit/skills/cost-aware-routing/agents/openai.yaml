@@ -2,3 +2,5 @@ interface:
   display_name: "Cost-Aware Routing"
   short_description: "Route complex work with durable model roles"
   default_prompt: "Use $cost-aware-routing to decide whether this task needs specialist delegation and resolve an appropriate model role."
+policy:
+  allow_implicit_invocation: false
