@@ -155,7 +155,7 @@ class RoleMapTests(unittest.TestCase):
 
 
 class RoutingMatrixTests(unittest.TestCase):
-    def test_plan_review_always_spawns_a_fresh_quality_first_model(self):
+    def test_complex_queue_routes_to_quality_first_decomposer(self):
         spec = importlib.util.spec_from_file_location(
             "route_step",
             ROOT / "plugins/codex-delegation-toolkit/skills/cost-aware-routing/scripts/route_step.py",
@@ -167,19 +167,19 @@ class RoutingMatrixTests(unittest.TestCase):
         quality_first, balanced = roles["quality_first"], roles["balanced"]
 
         result = router.decide(
-            "plan-review", quality_first, False, False, {quality_first, balanced}, roles,
+            "decompose", quality_first, False, False, {quality_first, balanced}, roles,
             delegation_available=True,
         )
 
-        self.assertEqual(result["action"], "spawn")
+        self.assertEqual(result["action"], "parent")
         self.assertEqual(result["model"], quality_first)
-        self.assertTrue(result["spawn"])
+        self.assertFalse(result["spawn"])
 
         cli = subprocess.run(
             [
                 sys.executable,
                 str(ROOT / "plugins/codex-delegation-toolkit/skills/cost-aware-routing/scripts/route_step.py"),
-                "--step", "plan-review", "--parent", quality_first,
+                "--step", "decompose", "--parent", quality_first,
                 "--available", quality_first, balanced,
                 "--delegation-available",
             ],
@@ -188,9 +188,9 @@ class RoutingMatrixTests(unittest.TestCase):
             text=True,
         )
         self.assertEqual(cli.returncode, 0)
-        self.assertEqual(json.loads(cli.stdout)["action"], "spawn")
+        self.assertEqual(json.loads(cli.stdout)["action"], "parent")
 
-    def test_cli_independent_review_flag_preserves_default_local_judge(self):
+    def test_cli_quality_first_parent_judges_locally(self):
         script = ROOT / "plugins/codex-delegation-toolkit/skills/cost-aware-routing/scripts/route_step.py"
         roles = json.loads(ROLE_MAP.read_text(encoding="utf-8"))["roles"]
         base = [
@@ -205,16 +205,8 @@ class RoutingMatrixTests(unittest.TestCase):
             roles["balanced"],
         ]
         local = subprocess.run(base, check=False, capture_output=True, text=True)
-        independent = subprocess.run(
-            [*base, "--independent-review", "--delegation-available"],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
         self.assertEqual(local.returncode, 0)
-        self.assertEqual(independent.returncode, 0)
         self.assertEqual(json.loads(local.stdout)["action"], "parent")
-        self.assertEqual(json.loads(independent.stdout)["action"], "spawn")
 
     def test_typical_task_classes_follow_step_contract(self):
         spec = importlib.util.spec_from_file_location(
@@ -228,36 +220,34 @@ class RoutingMatrixTests(unittest.TestCase):
         sol, terra = roles["quality_first"], roles["balanced"]
         available = {sol, terra}
         cases = (
-            ("bounded_edit", "implement", terra, False, False, False, False, False, False, "parent", terra, "medium"),
-            ("debug_and_tests", "implement", terra, False, False, False, False, False, False, "parent", terra, "medium"),
-            ("unpinned_sol_parent_implement", "implement", sol, False, False, False, False, False, False, "spawn", terra, "medium"),
-            ("bounded_without_contract_stays_terra", "implement", sol, False, False, True, False, False, False, "spawn", terra, "medium"),
-            ("contract_without_bounded_stays_terra", "implement", sol, False, False, False, True, False, False, "spawn", terra, "medium"),
-            ("bounded_complete_stays_terra", "implement", sol, False, False, True, True, False, False, "spawn", terra, "medium"),
-            ("hard_bounded_complete_stays_terra", "implement", sol, False, False, True, True, True, False, "spawn", terra, "medium"),
-            ("hard_without_contract_stays_terra", "implement", sol, False, False, False, False, True, False, "spawn", terra, "medium"),
-            ("terra_parent_bounded_implement", "implement", terra, False, False, True, False, False, False, "parent", terra, "medium"),
-            ("terra_parent_complete_contract", "implement", terra, False, False, False, True, False, False, "parent", terra, "medium"),
-            ("explicit_sol_pin_implement", "implement", sol, True, False, True, True, True, False, "spawn", terra, "medium"),
-            ("sol_pin_permits_terra_implement", "implement", sol, True, True, True, True, False, False, "spawn", terra, "medium"),
-            ("terra_parent_sol_pin_implement", "implement", terra, True, False, False, False, False, False, "parent", terra, "medium"),
-            ("terra_parent_plan", "plan", terra, False, False, False, False, False, False, "spawn", sol, "medium"),
-            ("sol_parent_plans_itself", "plan", sol, False, False, False, False, False, False, "parent", sol, "medium"),
-            ("sol_pin_plan", "plan", terra, True, False, False, False, False, False, "spawn", sol, "medium"),
-            ("quality_first_parent_plan_review_spawns", "plan-review", sol, False, False, False, False, False, False, "spawn", sol, "medium"),
-            ("terra_parent_judge_spawns_quality_first", "judge", terra, False, False, False, False, False, False, "spawn", sol, "medium"),
-            ("independent_review_always_spawns", "judge", sol, False, False, False, False, False, True, "spawn", sol, "medium"),
-            ("quality_first_parent_judges_locally", "judge", sol, True, False, True, True, False, False, "parent", sol, "medium"),
-            ("sol_unavailable", "judge", terra, False, False, False, False, False, False, "ask", sol, "medium"),
-            ("plan_sol_unavailable", "plan", terra, False, False, False, False, False, False, "ask", sol, "medium"),
+            ("bounded_edit", "implement", terra, False, False, False, False, False, "parent", terra, "medium"),
+            ("debug_and_tests", "implement", terra, False, False, False, False, False, "parent", terra, "medium"),
+            ("unpinned_sol_parent_implement", "implement", sol, False, False, False, False, False, "spawn", terra, "medium"),
+            ("bounded_without_contract_stays_terra", "implement", sol, False, False, True, False, False, "spawn", terra, "medium"),
+            ("contract_without_bounded_stays_terra", "implement", sol, False, False, False, True, False, "spawn", terra, "medium"),
+            ("bounded_complete_stays_terra", "implement", sol, False, False, True, True, False, "spawn", terra, "medium"),
+            ("hard_bounded_complete_stays_terra", "implement", sol, False, False, True, True, True, "spawn", terra, "medium"),
+            ("hard_without_contract_stays_terra", "implement", sol, False, False, False, False, True, "spawn", terra, "medium"),
+            ("terra_parent_bounded_implement", "implement", terra, False, False, True, False, False, "parent", terra, "medium"),
+            ("terra_parent_complete_contract", "implement", terra, False, False, False, True, False, "parent", terra, "medium"),
+            ("explicit_sol_pin_implement", "implement", sol, True, False, True, True, True, "spawn", terra, "medium"),
+            ("sol_pin_permits_terra_implement", "implement", sol, True, True, True, True, False, "spawn", terra, "medium"),
+            ("terra_parent_sol_pin_implement", "implement", terra, True, False, False, False, False, "parent", terra, "medium"),
+            ("terra_parent_decomposes_with_sol", "decompose", terra, False, False, False, False, False, "spawn", sol, "medium"),
+            ("sol_parent_decomposes_itself", "decompose", sol, False, False, False, False, False, "parent", sol, "medium"),
+            ("sol_pin_decompose", "decompose", terra, True, False, False, False, False, "spawn", sol, "medium"),
+            ("terra_parent_judge_spawns_quality_first", "judge", terra, False, False, False, False, False, "spawn", sol, "medium"),
+            ("quality_first_parent_judges_locally", "judge", sol, True, False, True, True, False, "parent", sol, "medium"),
+            ("sol_unavailable", "judge", terra, False, False, False, False, False, "ask", sol, "medium"),
+            ("decompose_sol_unavailable", "decompose", terra, False, False, False, False, False, "ask", sol, "medium"),
         )
         sol_spawns = 0
         for case in cases:
-            name, step, parent, pin, permit, bounded, complete, hard, independent, action, model, effort = case
+            name, step, parent, pin, permit, bounded, complete, hard, action, model, effort = case
             models = {terra} if action == "ask" else available
             result = router.decide(
                 step, parent, pin, permit, models, roles, bounded, complete, hard,
-                independent, delegation_available=True,
+                delegation_available=True,
             )
             self.assertEqual(result["action"], action, name)
             self.assertEqual(result["model"], model, name)
@@ -277,7 +267,7 @@ class RoutingMatrixTests(unittest.TestCase):
                 self.assertEqual(result["model"], terra, name)
             if action == "spawn" and model == sol:
                 sol_spawns += 1
-        self.assertEqual(sol_spawns, 5)
+        self.assertEqual(sol_spawns, 3)
 
     def test_locality_uses_configured_role_map_values(self):
         spec = importlib.util.spec_from_file_location(
@@ -290,11 +280,9 @@ class RoutingMatrixTests(unittest.TestCase):
         roles = {"quality_first": "custom-quality", "balanced": "custom-balanced"}
         available = set(roles.values())
         cases = (
-            ("plan", "custom-quality", "parent", "custom-quality"),
+            ("decompose", "custom-quality", "parent", "custom-quality"),
             ("implement", "custom-balanced", "parent", "custom-balanced"),
-            ("plan", "custom-balanced", "spawn", "custom-quality"),
-            ("plan-review", "custom-quality", "spawn", "custom-quality"),
-            ("plan-review", "custom-balanced", "spawn", "custom-quality"),
+            ("decompose", "custom-balanced", "spawn", "custom-quality"),
             ("implement", "custom-quality", "spawn", "custom-balanced"),
             ("judge", "custom-quality", "parent", "custom-quality"),
             ("judge", "custom-balanced", "spawn", "custom-quality"),
@@ -308,7 +296,7 @@ class RoutingMatrixTests(unittest.TestCase):
                 self.assertEqual(result["action"], action)
                 self.assertEqual(result["model"], model)
 
-    def test_fast_routing_stays_local_on_balanced_or_uses_available_economy(self):
+    def test_fast_routing_keeps_a_started_terra_parent_local(self):
         spec = importlib.util.spec_from_file_location(
             "route_step", ROOT / "plugins/codex-delegation-toolkit/skills/cost-aware-routing/scripts/route_step.py"
         )
@@ -317,12 +305,12 @@ class RoutingMatrixTests(unittest.TestCase):
         spec.loader.exec_module(router)
         legacy = {"quality_first": "sol", "balanced": "terra"}
         missing = router.decide("implement", "terra", False, False, {"sol", "terra"}, legacy, complexity_tier="fast")
-        self.assertEqual(missing["status"], "routed")
-        self.assertEqual(missing["model"], "terra")
+        self.assertEqual(missing["status"], "degraded")
+        self.assertEqual(missing["action"], "parent")
         roles = {**legacy, "economy": "luna"}
         unavailable = router.decide("implement", "terra", False, False, {"sol", "terra"}, roles, complexity_tier="fast")
-        self.assertEqual(unavailable["status"], "routed")
-        self.assertEqual(unavailable["model"], "terra")
+        self.assertEqual(unavailable["status"], "degraded")
+        self.assertEqual(unavailable["action"], "parent")
         unavailable_from_sol = router.decide(
             "implement", "sol", False, False, {"sol", "terra"}, roles,
             complexity_tier="fast", delegation_available=True,
@@ -336,9 +324,11 @@ class RoutingMatrixTests(unittest.TestCase):
             "implement", "terra", False, False, set(roles.values()), roles,
             complexity_tier="fast", delegation_available=True,
         )
+        self.assertEqual(routed["status"], "degraded")
         self.assertEqual(routed["action"], "parent")
-        self.assertEqual(routed["role"], "balanced")
+        self.assertEqual(routed["role"], "fallback_parent")
         self.assertEqual(routed["model"], "terra")
+        self.assertEqual(routed["requested_model"], "luna")
 
         delegated = router.decide(
             "implement", "sol", False, False, set(roles.values()), roles,
@@ -394,7 +384,7 @@ class RoutingMatrixTests(unittest.TestCase):
         self.assertEqual(result["requested_model"], roles["quality_first"])
         self.assertIn("never wait", result["reason"])
 
-    def test_fast_unknown_parent_stays_on_current_without_guessing(self):
+    def test_fast_unknown_parent_degrades_without_spawn_transport(self):
         spec = importlib.util.spec_from_file_location(
             "route_step",
             ROOT / "plugins/codex-delegation-toolkit/skills/cost-aware-routing/scripts/route_step.py",
@@ -412,11 +402,42 @@ class RoutingMatrixTests(unittest.TestCase):
             roles,
             complexity_tier="fast",
         )
-        self.assertEqual(result["status"], "routed")
+        self.assertEqual(result["status"], "degraded")
         self.assertEqual(result["action"], "parent")
         self.assertEqual(result["model"], "current")
-        self.assertEqual(result["role"], "current")
+        self.assertEqual(result["role"], "fallback_parent")
+        self.assertEqual(result["requested_model"], roles["economy"])
         self.assertFalse(result["spawn"])
+
+        with_transport = router.decide(
+            "implement",
+            "current",
+            False,
+            False,
+            set(roles.values()),
+            roles,
+            complexity_tier="fast",
+            delegation_available=True,
+        )
+        self.assertEqual(with_transport["status"], "degraded")
+        self.assertEqual(with_transport["action"], "parent")
+        self.assertEqual(with_transport["model"], "current")
+        self.assertFalse(with_transport["spawn"])
+
+        standard = router.decide(
+            "implement",
+            "current",
+            False,
+            False,
+            set(roles.values()),
+            roles,
+            complexity_tier="reviewed",
+            delegation_available=True,
+        )
+        self.assertEqual(standard["status"], "degraded")
+        self.assertEqual(standard["action"], "parent")
+        self.assertEqual(standard["requested_model"], roles["balanced"])
+        self.assertFalse(standard["spawn"])
 
 
 if __name__ == "__main__":

@@ -9,7 +9,6 @@ PLUGIN = ROOT / "plugins/codex-delegation-toolkit"
 ROUTER = (PLUGIN / "skills/cost-aware-routing/SKILL.md").read_text(encoding="utf-8")
 REVIEWED = (PLUGIN / "skills/cost-aware-routing/references/reviewed-workflow.md").read_text(encoding="utf-8")
 ROUTING_CONTRACT = ROUTER + "\n" + REVIEWED
-WORKFLOW_ECONOMICS = (PLUGIN / "skills/cost-aware-routing/references/workflow-economics.md").read_text(encoding="utf-8")
 HANDOFF = (PLUGIN / "skills/cost-aware-routing/references/handoff-output.md").read_text(encoding="utf-8")
 BUDGET = (PLUGIN / "skills/agent-context-budget/SKILL.md").read_text(encoding="utf-8")
 RENDERER_PATH = PLUGIN / "skills/cost-aware-routing/scripts/render_cache_handoff.py"
@@ -29,11 +28,11 @@ class SkillContractTests(unittest.TestCase):
         description = ROUTER.split("---", 2)[1]
         self.assertIn("explicit model/delegation decisions", description)
         self.assertIn("after routing is decided", description)
-        self.assertIn("invoke `$agent-context-budget`", ROUTING_CONTRACT)
+        self.assertIn("invoke `$codex-delegation-toolkit:agent-context-budget`", ROUTING_CONTRACT)
         self.assertIn("do not invoke it when work remains on the parent", ROUTING_CONTRACT)
-        self.assertIn("If action is `parent`, do not invoke `$agent-context-budget`", ROUTING_CONTRACT)
+        self.assertIn("If action is `parent`, do not invoke `$codex-delegation-toolkit:agent-context-budget`", ROUTING_CONTRACT)
         self.assertIn("do not render an execute capsule", ROUTING_CONTRACT)
-        self.assertIn("keep only `STATUS` plus the contract or `FINDINGS`", ROUTING_CONTRACT)
+        self.assertIn("Keep only `STATUS` plus the task graph or `FINDINGS`", ROUTING_CONTRACT)
 
     def test_budget_contract_is_stable(self):
         self.assertIn("Do not use for ordinary single-agent work", BUDGET)
@@ -50,10 +49,9 @@ class SkillContractTests(unittest.TestCase):
         for value in (
             "`quality_first`", "`balanced`", "scripts/route_step.py",
             "Honor the script output", "do not re-derive the matrix",
-            "ordinarily judges locally", "--independent-review",
-            "fresh read-only `quality_first` reviewer",
-            "`plan-review` is a distinct pre-implementation gate",
-            "always spawns a fresh read-only `quality_first` reviewer",
+            "quality-first parent judges the final diff locally",
+            "Sol decomposes complex work",
+            "Do not spawn a separate judge",
             "never silently substitute a model",
             "presence of `wait` alone is not delegation capability",
             "If it does not, pass the literal `current`; never guess a role or model id",
@@ -68,6 +66,9 @@ class SkillContractTests(unittest.TestCase):
             "make at most two `wait_agent` calls of at most 60 seconds each",
             "interrupt that identifier once",
             "Do not retry spawn",
+            "resolve the repository root with `pwd -P`",
+            "repository-relative owned paths",
+            "only after its declared diff and deterministic validation are visible",
         ):
             self.assertIn(value, ROUTING_CONTRACT)
 
@@ -76,19 +77,18 @@ class SkillContractTests(unittest.TestCase):
             "scripts/escalate_step.py",
             "Do not use self-reported confidence",
             "First-pass `route_step` effort is always `medium`",
-            "scripts/record_compute.py",
             "Terra applies findings once and stops",
             "do not run `escalate_step.py` again",
         ):
             self.assertIn(value, ROUTING_CONTRACT)
 
-    def test_router_keeps_independent_review_gate(self):
+    def test_router_keeps_final_review_gate(self):
         for value in (
-            "After a Sol-planned or `--sol-pin` path",
+            "After a Sol-decomposed or `--sol-pin` path",
             "Terra-only simple work: Terra reviews its own diff",
-            "material correctness, security, compatibility, or contract risk",
+            "material correctness, security, compatibility, contract risk",
             "focused caller/configuration/test impact references",
-            "never resume the planner",
+            "Do not spawn a separate judge",
         ):
             self.assertIn(value, ROUTING_CONTRACT)
 
@@ -98,15 +98,10 @@ class SkillContractTests(unittest.TestCase):
             "Use `entry_tier` for workflow shape and first-model selection",
             "use `effective_tier` only for implementation-role compatibility",
             "Permissions and authorization are separate execution constraints, never score inputs",
-            "Effective `fast`",
-            "Entry `complex`",
+            "`complex`",
             "Sol never edits",
-            "It forces Sol plan plus review; it does not make Sol implement",
-            "from the approved contract with no second plan",
-            "pause for explicit user approval after plan review",
-            "Decorative equations are forbidden",
-            "The Sol planner is read-only and may inspect the repo",
-            "writes anchors, scope, and acceptance",
+            "It forces the Sol decomposition queue; it does not make Sol implement",
+            "Sol decomposes the work into a bounded task graph",
         ):
             self.assertIn(value, ROUTING_CONTRACT)
 
@@ -114,20 +109,20 @@ class SkillContractTests(unittest.TestCase):
         for value in (
             "Each spawned Sol agent must independently discover/load any skill whose trigger matches its task",
             "Do not assume parent skill context is inherited",
-            "Do not re-invoke `$cost-aware-routing` or `$agent-context-budget`",
+            "Do not re-invoke `$codex-delegation-toolkit:cost-aware-routing` or `$codex-delegation-toolkit:agent-context-budget`",
         ):
             self.assertIn(value, ROUTING_CONTRACT)
         for value in (
             "Independently load matching task skills; do not assume parent skill context is inherited",
-            "Do not invoke $cost-aware-routing or $agent-context-budget",
+            "Do not invoke $codex-delegation-toolkit:cost-aware-routing or $codex-delegation-toolkit:agent-context-budget",
         ):
-            self.assertIn(value, RENDERER.PREFIXES["plan"])
+            self.assertIn(value, RENDERER.PREFIXES["decompose"])
         review = RENDERER.PREFIXES["review"]
         self.assertIn("Fresh review: no planner context", review)
         self.assertIn("Independently load matching task skills", review)
-        self.assertIn("Do not invoke $cost-aware-routing, $agent-context-budget, or $codex-speeder", review)
+        self.assertIn("Do not invoke $codex-delegation-toolkit:cost-aware-routing, $codex-delegation-toolkit:agent-context-budget, or $codex-speeder:codex-speeder", review)
         self.assertNotIn("do not use tools or other skills", review)
-        self.assertIn("Do not re-plan. Retrieve named anchors first.", RENDERER.PREFIXES["execute"])
+        self.assertIn("Do not re-decompose. Retrieve named anchors first.", RENDERER.PREFIXES["execute"])
 
     def test_handoff_reference_is_conditional_and_safe(self):
         self.assertIn("[references/handoff-output.md]", ROUTER)
@@ -158,7 +153,7 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("Send only Scope, Constraints/Risks, Acceptance, and Anchors", BUDGET)
         self.assertIn("If the diff text is already in the packet, do not invoke `$codex-speeder`", BUDGET)
         self.assertIn("The reviewer still independently loads matching task skills", BUDGET)
-        self.assertIn("Pre-exploration **plan** packets", BUDGET)
+        self.assertIn("Pre-exploration **decompose** packets", BUDGET)
         self.assertIn("**execute** packets are only for a spawned implementer", BUDGET)
         self.assertIn("do not build an execute packet", BUDGET)
         self.assertIn("Omit parent-invented Scope, Anchors, Evidence, and Acceptance", BUDGET)
@@ -209,45 +204,30 @@ class SkillContractTests(unittest.TestCase):
             "selector is deterministic and invokes no model",
             "fast` classification selects Luna at medium effort",
             "standard` selects Terra at medium effort",
-            "complex` selects Sol to plan",
+            "complex` selects Sol to decompose",
             "Entry selection does not enable parallelism",
+            "must not spawn merely to downgrade cost",
         ):
             self.assertIn(value, ROUTER)
 
-    def test_router_exposes_pre_model_launcher_without_implicit_loading(self):
+    def test_router_exposes_pre_model_launcher_and_implicit_discovery(self):
         metadata = (PLUGIN / "skills/cost-aware-routing/agents/openai.yaml").read_text(encoding="utf-8")
         launcher = PLUGIN / "skills/cost-aware-routing/scripts/launch_codex.py"
         self.assertTrue(launcher.is_file())
         self.assertIn("scripts/launch_codex.py", ROUTER)
-        self.assertIn("allow_implicit_invocation: false", metadata)
+        self.assertIn("allow_implicit_invocation: true", metadata)
         self.assertIn("routing receipt that prevents duplicate routing", ROUTER)
 
-    def test_router_documents_workflow_economics_and_measurement(self):
-        self.assertIn("references/workflow-economics.md", ROUTER)
-        self.assertIn(
-            "For one bounded task with no proposed graph and no supplied economics",
-            ROUTER,
-        )
-        self.assertIn("route it directly with `route_step.py`", ROUTER)
-        self.assertIn("do not read the workflow-economics reference", ROUTER)
+    def test_router_documents_three_queue_dispatch(self):
         for value in (
-            "scripts/orchestrate_workflow.py", "scripts/record_compute.py record-workflow",
-            "required reducer use order", "conservative fallback",
-            "approved supplied graph proceeds to implementation and is never planned again",
+            "Every task enters one queue", "`fast` for `economy` (Luna)",
+            "`standard` for `balanced` (Terra)", "`complex` for `quality_first` (Sol)",
+            "run `scripts/orchestrate_workflow.py`", "without another planning or economics pass",
+            "exactly one logical owner", "do not create queues, owners, or implementation agents",
+            "Execute every queue and dependency wave serially", "stop its dependents",
         ):
             self.assertIn(value, ROUTING_CONTRACT)
-        for value in (
-            "expected_score = (K + latency_weight * L) / p",
-            "K = dag.overhead_cost_units + sum(task.cost_units)",
-            "L = dag.overhead_latency_ms + sum(max(task.latency_ms in wave) for wave)",
-            "status `insufficient`", "partial or mismatched estimates", "rejected rather than guessed",
-            "Gather bounded preflight evidence", "obtain an approved graph",
-            "Invoke `orchestrate_workflow.py plan` once", "internally classifies and schedules",
-            "supplied graph is already approved",
-            "execution_mode` and `next_action`", "orchestrate_workflow.py\n   after-implement",
-            "codex-workflow-outcome-v1", "record_compute.py record-workflow",
-        ):
-            self.assertIn(value, WORKFLOW_ECONOMICS)
+        self.assertNotIn("workflow-economics", ROUTING_CONTRACT)
 
     def test_cache_prefix_eval_uses_renderer_and_cache_fields(self):
         eval_source = (ROOT / "experiments/cache_prefix_eval.py").read_text(encoding="utf-8")

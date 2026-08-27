@@ -15,24 +15,39 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(WORKFLOW)
 
 
-def plan(**overrides):
+def queue_request(**overrides):
     value = {
-        "schema": WORKFLOW.PLAN_INPUT_SCHEMA, "parent": "parent", "available": ["sol", "terra", "eco"],
-        "complexity": {"A": 0, "B": 0, "U": 0, "preflight_complete": True, "evidence_truncated": False, "sol_pin": False, "terra_permit": False},
-        "allow_recursive_delegation": False, "current_delegation_depth": 0, "max_delegation_depth": 2,
+        "schema": WORKFLOW.QUEUE_INPUT_SCHEMA,
+        "parent": "parent",
+        "available": ["sol", "terra", "eco"],
+        "complexity": {
+            "A": 0, "B": 0, "U": 0, "preflight_complete": True,
+            "evidence_truncated": False, "sol_pin": False, "terra_permit": False,
+        },
+        "allow_recursive_delegation": False,
+        "current_delegation_depth": 0,
+        "max_delegation_depth": 2,
         "delegation_available": True,
     }
     value.update(overrides)
     return value
 
 
-def graph():
+def task(task_id, path, *, B=0, depends_on=()):
     return {
-        "schema": "codex-task-graph-v1", "integration_validation": ["pytest"],
-        "tasks": [
-            {"id": "a", "objective": "a", "owned_paths": ["a.py"], "depends_on": [], "acceptance": "ok", "validation": "pytest", "A": 0, "B": 0, "U": 0, "preflight_complete": True, "evidence_truncated": False},
-            {"id": "b", "objective": "b", "owned_paths": ["b.py"], "depends_on": [], "acceptance": "ok", "validation": "pytest", "A": 0, "B": 0, "U": 0, "preflight_complete": True, "evidence_truncated": False},
-        ],
+        "id": task_id, "objective": task_id, "owned_paths": [path],
+        "depends_on": list(depends_on), "acceptance": "ok", "validation": "pytest",
+        "A": 0, "B": B, "U": 0, "preflight_complete": True,
+        "evidence_truncated": False,
+    }
+
+
+def graph(*tasks):
+    items = tasks or (task("a", "a.py"), task("b", "b.py"))
+    return {
+        "schema": "codex-task-graph-v1",
+        "integration_validation": ["pytest"],
+        "tasks": list(items),
     }
 
 
@@ -40,119 +55,124 @@ ROLES = {"quality_first": "sol", "balanced": "terra", "economy": "eco"}
 
 
 class WorkflowTests(unittest.TestCase):
-    def test_no_economics_uses_single_and_delegates_existing_fast_route(self):
-        output = WORKFLOW.decide_plan(plan(parent="terra"), roles=ROLES)
-        self.assertEqual(output["split_decision"], {"status": "insufficient", "selected": "single", "reason": "economics unavailable"})
-        self.assertEqual(output["execution_mode"], "single")
-        self.assertEqual(output["next_action"]["model"], "terra")
-        self.assertEqual(output["next_action"]["action"], "parent")
+    def test_single_task_enters_matching_queue(self):
+        fast = WORKFLOW.decide_queue(queue_request(parent="terra"), roles=ROLES)
+        self.assertEqual(fast["queue"], "fast")
+        self.assertEqual(fast["execution_mode"], "single")
+        self.assertEqual(fast["next_action"]["model"], "terra")
+        self.assertEqual(fast["next_action"]["action"], "parent")
+        self.assertEqual(fast["next_action"]["requested_model"], "eco")
 
-    def test_incomplete_preflight_short_circuits_schedule_economics_and_routing(self):
+        standard = WORKFLOW.decide_queue(queue_request(
+            parent="terra", complexity={**queue_request()["complexity"], "B": 4},
+        ), roles=ROLES)
+        self.assertEqual(standard["queue"], "standard")
+        self.assertEqual(standard["next_action"]["model"], "terra")
+        self.assertEqual(standard["next_action"]["action"], "parent")
+
+        complex_task = WORKFLOW.decide_queue(queue_request(
+            parent="terra", complexity={**queue_request()["complexity"], "B": 8},
+        ), roles=ROLES)
+        self.assertEqual(complex_task["queue"], "complex")
+        self.assertEqual(complex_task["next_action"]["model"], "sol")
+        self.assertEqual(complex_task["next_action"]["action"], "spawn")
+
+    def test_incomplete_preflight_blocks_before_queue_dispatch(self):
         for incomplete in ({"preflight_complete": False}, {"evidence_truncated": True}):
             with self.subTest(incomplete=incomplete):
-                source = plan(complexity={**plan()["complexity"], **incomplete}, graph=graph(), economics={})
-                output = WORKFLOW.decide_plan(source, roles=ROLES)
+                source = queue_request(complexity={**queue_request()["complexity"], **incomplete}, graph=graph())
+                output = WORKFLOW.decide_queue(source, roles=ROLES)
                 self.assertEqual(output["status"], "incomplete")
+                self.assertEqual(output["queue"], "blocked")
                 self.assertEqual(output["classification"]["required_steps"], ["complete-preflight"])
-                self.assertEqual(output["execution_mode"], "single")
-                self.assertEqual(output["split_decision"], {"status": "not-evaluated", "selected": "single", "reason": "preflight incomplete"})
                 self.assertNotIn("next_action", output)
                 self.assertNotIn("schedule", output)
 
-    def test_dag_cost_latency_and_gain_select_dag(self):
-        economics = {
-            "latency_weight": 1, "minimum_gain_ratio": 0.1,
-            "single": {"cost_units": 10, "latency_ms": 100, "success_probability": 1},
-            "dag": {"overhead_cost_units": 2, "overhead_latency_ms": 5, "success_probability": 1,
-                    "tasks": {"a": {"cost_units": 3, "latency_ms": 20}, "b": {"cost_units": 3, "latency_ms": 30}}},
-        }
-        output = WORKFLOW.decide_plan(plan(graph=graph(), economics=economics), roles=ROLES)
-        decision = output["split_decision"]
-        self.assertEqual(decision["selected"], "dag")
-        self.assertEqual(decision["single_score"], 110)
-        self.assertEqual(decision["dag_score"], 43)
-        self.assertAlmostEqual(decision["gain_ratio"], 67 / 110)
-        self.assertEqual(output["schedule"]["waves"][0][0]["id"], "a")
-
-    def test_standard_workflow_stays_on_terra_after_local_plan(self):
-        source = plan(
-            parent="terra",
-            complexity={**plan()["complexity"], "A": 8, "B": 1},
-            graph=graph(),
+    def test_approved_graph_dispatches_without_economics(self):
+        source = graph(
+            task("fast", "a.py"),
+            task("standard", "b.py", B=4),
+            task("complex", "c.py", B=8, depends_on=("fast",)),
         )
-        output = WORKFLOW.decide_plan(source, roles=ROLES)
-        self.assertEqual(output["classification"]["entry_tier"], "standard")
-        self.assertEqual(output["next_action"]["action"], "parent")
-        self.assertEqual(output["next_action"]["model"], "terra")
-
-    def test_complex_workflow_plans_once_then_implements_approved_graph(self):
-        complexity = {**plan()["complexity"], "B": 8}
-        without_graph = WORKFLOW.decide_plan(
-            plan(parent="terra", complexity=complexity), roles=ROLES,
+        output = WORKFLOW.decide_queue(queue_request(parent="sol", graph=source), roles=ROLES)
+        self.assertEqual(output["status"], "queued")
+        self.assertEqual(output["execution_mode"], "waves")
+        self.assertEqual(output["dispatch_mode"], "serial")
+        self.assertEqual(output["failure_policy"], "stop-dependent-tasks")
+        self.assertEqual(
+            output["schedule"]["queues"],
+            {"fast": ["fast"], "standard": ["standard"], "complex": ["complex"]},
         )
-        self.assertEqual(without_graph["classification"]["entry_tier"], "complex")
-        self.assertEqual(without_graph["next_action"]["model"], "sol")
+        emitted = {
+            item["id"]: item for wave in output["schedule"]["waves"] for item in wave
+        }
+        self.assertEqual((emitted["fast"]["model"], emitted["fast"]["work_type"]), ("eco", "implement"))
+        self.assertEqual((emitted["standard"]["model"], emitted["standard"]["work_type"]), ("terra", "implement"))
+        self.assertEqual((emitted["complex"]["model"], emitted["complex"]["work_type"]), ("sol", "decompose"))
+        self.assertNotIn("next_action", output)
 
-        with_graph = WORKFLOW.decide_plan(
-            plan(parent="sol", complexity=complexity, graph=graph()), roles=ROLES,
+    def test_graph_runs_serially_without_delegation_transport(self):
+        source = queue_request(parent="sol", graph=graph())
+        source.pop("delegation_available")
+        output = WORKFLOW.decide_queue(source, roles=ROLES)
+        self.assertEqual(output["dispatch_mode"], "serial")
+
+    def test_graph_assigns_one_persistent_owner_per_queue(self):
+        source = graph(*(task(name, f"{name}.py") for name in ("a", "b", "c", "d")))
+        output = WORKFLOW.decide_queue(queue_request(parent="sol", graph=source), roles=ROLES)
+        self.assertEqual(output["dispatch_mode"], "serial")
+        self.assertEqual(
+            output["schedule"]["owners"]["fast"],
+            [{
+                "id": "fast-1", "task_ids": ["a", "b", "c", "d"],
+                "role": "economy", "model": "eco", "effort": "medium",
+            }],
         )
-        self.assertEqual(with_graph["next_action"]["action"], "spawn")
-        self.assertEqual(with_graph["next_action"]["model"], "terra")
 
-    def test_ties_zero_and_bad_economics_fall_back_or_reject(self):
-        economics = {
-            "latency_weight": 0, "minimum_gain_ratio": 0,
-            "single": {"cost_units": 0, "latency_ms": 0, "success_probability": 1},
-            "dag": {"overhead_cost_units": 0, "overhead_latency_ms": 0, "success_probability": 1,
-                    "tasks": {"a": {"cost_units": 0, "latency_ms": 0}, "b": {"cost_units": 0, "latency_ms": 0}}},
-        }
-        self.assertEqual(WORKFLOW.decide_plan(plan(graph=graph(), economics=economics), roles=ROLES)["execution_mode"], "single")
-        economics["dag"]["tasks"].pop("b")
-        with self.assertRaisesRegex(WORKFLOW.WorkflowError, "exactly match"):
-            WORKFLOW.decide_plan(plan(graph=graph(), economics=economics), roles=ROLES)
+    def test_three_ready_tasks_share_one_owner_serially(self):
+        source = graph(*(task(name, f"{name}.py") for name in ("a", "b", "c")))
+        output = WORKFLOW.decide_queue(queue_request(parent="sol", graph=source), roles=ROLES)
+        self.assertEqual(output["dispatch_mode"], "serial")
+        self.assertEqual(len(output["schedule"]["owners"]["fast"]), 1)
 
-    def test_overflow_is_invalid_in_api_and_cli(self):
-        economics = {
-            "latency_weight": 0, "minimum_gain_ratio": 0,
-            "single": {"cost_units": 10 ** 400, "latency_ms": 0, "success_probability": 1},
-            "dag": {"overhead_cost_units": 0, "overhead_latency_ms": 0, "success_probability": 1,
-                    "tasks": {"a": {"cost_units": 0, "latency_ms": 0}, "b": {"cost_units": 0, "latency_ms": 0}}},
-        }
-        source = plan(graph=graph(), economics=economics)
-        with self.assertRaisesRegex(WORKFLOW.WorkflowError, "finite"):
-            WORKFLOW.decide_plan(source, roles=ROLES)
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "input.json"
-            path.write_text(json.dumps(source), encoding="utf-8")
-            result = subprocess.run([sys.executable, str(SCRIPT), "plan", "--input", str(path)], capture_output=True, text=True, check=False)
-        self.assertEqual(result.returncode, 2)
-        self.assertEqual(json.loads(result.stdout)["status"], "invalid")
+    def test_unavailable_queue_worker_fails_closed(self):
+        with self.assertRaisesRegex(WORKFLOW.WorkflowError, "standard queue is unavailable"):
+            WORKFLOW.decide_queue(
+                queue_request(graph=graph(task("standard", "a.py", B=4)), available=["sol", "eco"]),
+                roles=ROLES,
+            )
 
-    def test_strict_plan_and_after_implement_delegates_existing_escalation(self):
+    def test_economics_input_is_rejected(self):
         with self.assertRaisesRegex(WORKFLOW.WorkflowError, "missing or unknown"):
-            WORKFLOW.decide_plan({**plan(), "extra": True}, roles=ROLES)
-        verification = {"schema": WORKFLOW.VERIFY_INPUT_SCHEMA, "parent": "parent", "available": ["sol", "terra"], "current_effort": "medium", "verifier": "fail", "delegation_available": True}
+            WORKFLOW.decide_queue({**queue_request(), "economics": {}}, roles=ROLES)
+
+    def test_strict_queue_request_and_after_implement_delegates_existing_escalation(self):
+        with self.assertRaisesRegex(WORKFLOW.WorkflowError, "missing or unknown"):
+            WORKFLOW.decide_queue({**queue_request(), "extra": True}, roles=ROLES)
+        verification = {
+            "schema": WORKFLOW.VERIFY_INPUT_SCHEMA, "parent": "parent",
+            "available": ["sol", "terra"], "current_effort": "medium",
+            "verifier": "fail", "delegation_available": True,
+        }
         output = WORKFLOW.decide_after_implement(verification, roles=ROLES)
         self.assertEqual(output["next_action"]["action"], "retry")
         self.assertEqual(output["next_action"]["model"], "terra")
 
-    def test_workflow_defaults_to_inline_degrade_without_spawn_transport(self):
-        source = plan(parent="sol")
-        source.pop("delegation_available")
-        output = WORKFLOW.decide_plan(source, roles=ROLES)
-        self.assertEqual(output["next_action"]["status"], "degraded")
-        self.assertEqual(output["next_action"]["action"], "parent")
-        self.assertFalse(output["next_action"]["spawn"])
-
-    def test_cli_plan_and_invalid_input(self):
+    def test_cli_dispatch_and_invalid_input(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "input.json"
-            path.write_text(json.dumps(plan()), encoding="utf-8")
-            result = subprocess.run([sys.executable, str(SCRIPT), "plan", "--input", str(path)], capture_output=True, text=True, check=False)
+            path.write_text(json.dumps(queue_request()), encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), "dispatch", "--input", str(path)],
+                capture_output=True, text=True, check=False,
+            )
             self.assertEqual(result.returncode, 0)
-            self.assertEqual(json.loads(result.stdout)["status"], "planned")
-            path.write_text(json.dumps({"schema": WORKFLOW.PLAN_INPUT_SCHEMA}), encoding="utf-8")
-            result = subprocess.run([sys.executable, str(SCRIPT), "plan", "--input", str(path)], capture_output=True, text=True, check=False)
+            self.assertEqual(json.loads(result.stdout)["status"], "queued")
+            path.write_text(json.dumps({"schema": WORKFLOW.QUEUE_INPUT_SCHEMA}), encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), "dispatch", "--input", str(path)],
+                capture_output=True, text=True, check=False,
+            )
         self.assertEqual(result.returncode, 2)
         self.assertEqual(json.loads(result.stdout)["status"], "invalid")
 

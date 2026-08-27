@@ -70,6 +70,7 @@ class TaskGraphTests(unittest.TestCase):
         )
         result = SCHEDULER.schedule(value)
         self.assertEqual([[item["id"] for item in wave] for wave in result["waves"]], [["a", "z"], ["dependent"]])
+        self.assertEqual(result["queues"], {"fast": ["a", "z", "dependent"], "standard": [], "complex": []})
         self.assertEqual(result["final_steps"], ["integration_validation", "judge"])
 
     def test_greedy_conflicting_ready_tasks_form_later_wave(self):
@@ -77,6 +78,40 @@ class TaskGraphTests(unittest.TestCase):
             task("a", ["pkg"]), task("b", ["pkg/b.py"]), task("c", ["other.py"]),
         ))
         self.assertEqual([[item["id"] for item in wave] for wave in result["waves"]], [["a", "c"], ["b"]])
+
+    def test_queue_length_never_adds_an_owner(self):
+        fast = graph(*(task(name, [f"{name}.py"]) for name in ("a", "b", "c", "d")))
+        fast_result = SCHEDULER.schedule(fast)
+        self.assertEqual(
+            fast_result["owners"]["fast"],
+            [{"id": "fast-1", "task_ids": ["a", "b", "c", "d"]}],
+        )
+
+        standard = graph(*(
+            task(name, [f"{name}.py"], B=4) for name in ("a", "b", "c", "d")
+        ))
+        self.assertEqual(len(SCHEDULER.schedule(standard)["owners"]["standard"]), 1)
+
+        complex_graph = graph(*(
+            task(name, [f"{name}.py"], B=8) for name in ("a", "b", "c", "d")
+        ))
+        self.assertEqual(len(SCHEDULER.schedule(complex_graph)["owners"]["complex"]), 1)
+
+        seven = graph(*(task(f"t{index}", [f"t{index}.py"]) for index in range(7)))
+        seven_result = SCHEDULER.schedule(seven)
+        self.assertEqual(len(seven_result["owners"]["fast"]), 1)
+        self.assertEqual(
+            seven_result["owners"]["fast"][0]["task_ids"],
+            [f"t{index}" for index in range(7)],
+        )
+
+    def test_one_owner_persists_across_dependency_waves(self):
+        value = graph(
+            task("seed", ["seed.py"]),
+            *(task(name, [f"{name}.py"], ["seed"]) for name in ("a", "b", "c", "d")),
+        )
+        owners = SCHEDULER.schedule(value)["owners"]["fast"]
+        self.assertEqual(owners, [{"id": "fast-1", "task_ids": ["seed", "a", "b", "c", "d"]}])
 
     def test_classifier_fields_are_preserved_and_incomplete_evidence_rejected(self):
         source = task("a", ["a.py"], A=1, B=2, U=0, sol_pin=True)
@@ -86,6 +121,8 @@ class TaskGraphTests(unittest.TestCase):
             self.assertEqual(emitted[field], source[field])
         self.assertNotIn("terra_permit", emitted)
         self.assertEqual(emitted["classification"]["effective_tier"], "reviewed")
+        self.assertEqual(emitted["queue"], "complex")
+        self.assertEqual(emitted["work_type"], "decompose")
         with self.assertRaisesRegex(SCHEDULER.TaskGraphError, "incomplete"):
             SCHEDULER.schedule(graph(task("a", ["a.py"], preflight_complete=False)))
         with self.assertRaisesRegex(SCHEDULER.TaskGraphError, "incomplete"):

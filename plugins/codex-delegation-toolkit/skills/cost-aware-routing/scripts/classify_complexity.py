@@ -28,11 +28,9 @@ def _count(value: Any, name: str) -> int:
 def _steps(entry_tier: str, terra_permit: bool) -> list[str]:
     if terra_permit:
         return ["implement", "validate", "self-review"]
-    if entry_tier == "fast" and not terra_permit:
+    if entry_tier in ("fast", "standard"):
         return ["implement", "validate", "self-review"]
-    if entry_tier == "standard":
-        return ["plan", "implement", "validate", "self-review"]
-    return ["plan", "plan-review", "implement", "validate", "judge"]
+    return ["decompose", "dispatch", "integration-validation", "judge"]
 
 
 def classify(
@@ -79,6 +77,7 @@ def classify(
         "structural_tier": raw_tier,
         "effective_tier": effective_tier,
         "entry_tier": entry_tier,
+        "queue": entry_tier,
         "entry_role": entry_role,
         "implementation_role": implementation_role,
         "required_steps": ["complete-preflight"] if incomplete else _steps(

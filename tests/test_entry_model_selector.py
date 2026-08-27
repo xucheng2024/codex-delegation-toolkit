@@ -28,13 +28,13 @@ class EntryModelSelectorTests(unittest.TestCase):
         self.assertEqual(output["effort"], "medium")
         self.assertEqual(output["parallel_policy"], "none")
 
-    def test_standard_selects_terra_and_defers_parallelism_until_plan(self):
+    def test_standard_selects_terra_without_parallelism(self):
         output = SELECTOR.select(
             8, 1, 0, preflight_complete=True, evidence_truncated=False,
             available=AVAILABLE, roles=ROLES,
         )
         self.assertEqual(output["model"], "terra")
-        self.assertEqual(output["parallel_policy"], "evaluate_after_approved_graph")
+        self.assertEqual(output["parallel_policy"], "none")
 
     def test_complex_selects_sol(self):
         output = SELECTOR.select(

@@ -48,7 +48,7 @@ Do not put live `available` flags in the bundled role map. [model-role-map.json]
 - `balanced` → `gpt-5.6-terra`
 - `economy` → `gpt-5.6-luna`
 
-All roles use `spawn_agent` when the routing action is `spawn`. Model availability and delegation transport availability are separate facts. Confirm the target model is available, then pass `--delegation-available` only if the current tool catalog exposes a callable `spawn_agent`; `wait` by itself is insufficient. Without that assertion, routing fails safe to the named inline parent degradation and must not wait.
+Never use `spawn_agent` solely to move an implementation task from a capable parent to a cheaper role. Choose Luna or Terra before the first model call when launching a new task. Reserve spawning for capability transitions, such as Sol decomposition or moving implementation off a non-editing Sol parent. Model availability and delegation transport availability are separate facts. Pass `--delegation-available` only if the current tool catalog exposes a callable `spawn_agent`; `wait` by itself is insufficient. Without that assertion, routing fails safe to the named inline parent degradation and must not wait.
 
 An operator catalog is the only place `available` may claim current runtime or account state. If no catalog is present, use the role map, then confirm each spawn id against runtime metadata. If the target is unavailable or an operator catalog marks it `available: false`, disclose and ask once or apply an explicit named degrade. Do not silently substitute another model, and do not send the whole task to whoever the parent is.
 

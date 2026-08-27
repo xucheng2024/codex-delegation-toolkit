@@ -1,6 +1,6 @@
 ---
 name: agent-context-budget
-description: Prepare compact, evidence-backed context for a child agent or model after delegation has already been chosen. Use for multi-agent handoffs, specialist planning or review, and large tool, search, test, or log results. Do not use for ordinary single-agent work or to decide whether or which model to delegate to.
+description: Prepare compact, evidence-backed context for a child agent or model after delegation has already been chosen. Use for multi-agent handoffs, specialist decomposition or review, and large tool, search, test, or log results. Do not use for ordinary single-agent work or to decide whether or which model to delegate to.
 ---
 
 # Agent Context Budget
@@ -17,7 +17,7 @@ Budget only the context deliberately supplied in a handoff. Do not claim to remo
 
 ## Send one complete capsule
 
-Use these labels exactly and in this order. Include a field only when it changes the recipient's allowed action. Omit inapplicable fields; do not fill them with `None — <reason>`. Kind already implies `History scope: none` for plan, execute, review, and economy threads.
+Use these labels exactly and in this order. Include a field only when it changes the recipient's allowed action. Omit inapplicable fields; do not fill them with `None — <reason>`. Kind already implies `History scope: none` for decompose, execute, review, and economy threads.
 
 ```text
 History scope: none | bounded (<reason>) | full (<reason>)
@@ -34,9 +34,9 @@ Acceptance:
 Retrieve/Escalate: first retrieval action, escalation triggers, and delta limit
 ```
 
-Pre-exploration **plan** packets from a parent that has not inspected the repo stay thin: User request (verbatim), user-stated Constraints/Risks, and Retrieve/Escalate. Omit parent-invented Scope, Anchors, Evidence, and Acceptance. The Sol planner inspects the repo, loads matching task skills, and writes anchors, scope, and acceptance.
+Pre-exploration **decompose** packets from a parent that has not inspected the repo stay thin: User request (verbatim), user-stated Constraints/Risks, and Retrieve/Escalate. Omit parent-invented Scope, Anchors, Evidence, and Acceptance. The Sol decomposer inspects the repo, loads matching task skills, and returns a bounded task graph.
 
-**execute** packets are only for a spawned implementer. If `route_step` says `implement` / `parent`, do not build an execute packet; implement from the Sol contract in-thread. When spawning, execute packets carry the approved planner contract. Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate must be concrete. Terra retrieves named anchors first and does not re-plan or re-discover the repo.
+**execute** packets are only for a spawned implementer. If `route_step` says `implement` / `parent`, do not build an execute packet; implement from the queued contract in-thread. When spawning, execute packets carry the approved task contract. Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate must be concrete. Terra retrieves named anchors first and does not re-decompose or re-discover the repo.
 
 **economy** packets still require Objective, Scope, Constraints/Risks, Acceptance, and Retrieve/Escalate to be concrete. Include Anchors and Evidence when they exist. Include User request (verbatim) when the wording affects the decision.
 

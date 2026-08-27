@@ -18,7 +18,7 @@ from typing import Any
 
 SCHEMA = "codex-compute-event-v1"
 WORKFLOW_SCHEMA = "codex-workflow-outcome-v1"
-STEPS = ("plan", "implement", "judge")
+STEPS = ("decompose", "implement", "judge")
 EFFORTS = ("medium", "high")
 VERIFIERS = ("pass", "fail", "incomplete")
 ACTIONS = ("stop", "retry_high", "spawn_sol_judge")
@@ -127,7 +127,7 @@ def record(
     cwd: Path | None = None,
 ) -> dict[str, Any]:
     if step not in STEPS:
-        raise RecordError("step must be plan, implement, or judge")
+        raise RecordError("step must be decompose, implement, or judge")
     if not isinstance(model, str) or not MODEL_RE.fullmatch(model):
         raise RecordError("model must be a short identifier")
     if effort not in EFFORTS:

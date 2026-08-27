@@ -29,7 +29,7 @@ def decide(
     delegation_available: bool = False,
 ) -> dict[str, Any]:
     if step not in STEPS:
-        raise RouteError("step must be plan, plan-review, implement, or judge")
+        raise RouteError("step must be decompose, implement, or judge")
     if current_effort not in EFFORTS:
         raise RouteError("current-effort must be medium or high")
     if verifier not in VERIFIERS:

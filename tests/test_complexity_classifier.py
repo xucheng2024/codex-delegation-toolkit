@@ -32,6 +32,7 @@ class ComplexityClassifierTests(unittest.TestCase):
         self.assertEqual(boundary["entry_tier"], "standard")
         complex_result = CLASSIFIER.classify(0, 8, 0, preflight_complete=True)
         self.assertEqual(complex_result["entry_tier"], "complex")
+        self.assertEqual(complex_result["queue"], "complex")
         self.assertEqual(complex_result["entry_role"], "quality_first")
 
     def test_incomplete_or_truncated_evidence_never_routes_fast(self):
@@ -66,7 +67,7 @@ class ComplexityClassifierTests(unittest.TestCase):
         self.assertEqual(permitted["entry_tier"], "standard")
         self.assertEqual(permitted["required_steps"], ["implement", "validate", "self-review"])
         self.assertEqual(pinned["effective_tier"], "reviewed")
-        self.assertEqual(pinned["required_steps"][0], "plan")
+        self.assertEqual(pinned["required_steps"][0], "decompose")
 
     def test_invalid_input_fails_closed(self):
         with self.assertRaisesRegex(CLASSIFIER.ComplexityError, "non-negative"):

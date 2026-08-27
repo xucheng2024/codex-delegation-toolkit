@@ -78,14 +78,14 @@ class EscalateStepTests(unittest.TestCase):
         self.assertEqual(result["effort"], "medium")
         self.assertTrue(result["spawn"])
 
-    def test_plan_and_judge_failures_stop(self):
-        for step in ("plan", "judge"):
+    def test_decompose_and_judge_failures_stop(self):
+        for step in ("decompose", "judge"):
             result = self.decide(step, "medium", "fail")
             self.assertEqual(result["action"], "stop", step)
             self.assertFalse(result["spawn"], step)
 
-    def test_invalid_step_error_lists_plan_review(self):
-        with self.assertRaisesRegex(ESCALATE.RouteError, "plan-review"):
+    def test_invalid_step_error_lists_decompose(self):
+        with self.assertRaisesRegex(ESCALATE.RouteError, "decompose"):
             self.decide("unknown", "medium", "fail")
 
     def test_unavailable_target_asks(self):

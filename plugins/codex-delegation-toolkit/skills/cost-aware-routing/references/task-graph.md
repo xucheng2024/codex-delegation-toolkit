@@ -26,4 +26,6 @@ python scripts/schedule_task_graph.py --input task-graph.json \
   --allow-recursive-delegation
 ```
 
-Delegation is permitted only when `--allow-recursive-delegation` is present and the current depth is below the maximum; only then does each task include `next_delegation_depth`. The result preserves the task evidence passed to `classify_complexity.py`, includes the classification, and always ends with `final_steps` of `integration_validation` then `judge`.
+Delegation is permitted only when `--allow-recursive-delegation` is present and the current depth is below the maximum; only then does each task include `next_delegation_depth`. The result preserves the task evidence passed to `classify_complexity.py`, includes the classification, and assigns each task a `queue` and `work_type`. `fast` and `standard` tasks use `implement`; `complex` tasks use `decompose`. The `queues` object lists task ids by queue. The workflow always ends with `integration_validation` then `judge`.
+
+Process waves in order. The queue set is fixed to `fast`, `standard`, and `complex`; never create queues dynamically. Each non-empty queue gets exactly one logical owner for the workflow, regardless of queue length. Waves express readiness and ownership only: execute all tasks serially and do not spawn implementation agents from the graph. A failed task blocks every dependent task. The Sol parent performs the final judge after integration validation.

@@ -19,27 +19,23 @@ def load_renderer():
 
 
 class CacheHandoffTests(unittest.TestCase):
-    def test_plan_review_prefix_rendering_cli_and_empty_packet(self):
+    def test_decompose_prefix_rendering_cli_and_empty_packet(self):
         renderer = load_renderer()
-        prefix = renderer.PREFIXES["plan-review"]
-        self.assertTrue(prefix.startswith("CACHE_HANDOFF_V1\nKIND: PLAN-REVIEW\n"))
-        self.assertIn("Fresh read-only plan review.", prefix)
-        self.assertIn(
-            "CONTRACT: Objective, Evidence, Constraints, Change set, Acceptance; optional Decision model.",
-            prefix,
-        )
+        prefix = renderer.PREFIXES["decompose"]
+        self.assertTrue(prefix.startswith("CACHE_HANDOFF_V1\nKIND: DECOMPOSE\n"))
+        self.assertIn("Return a bounded task graph", prefix)
 
-        packet = {"acceptance": "route", "objective": "review the plan", "evidence": None}
-        rendered = renderer.render_packet("plan-review", packet)
+        packet = {"acceptance": "route", "objective": "decompose the task", "evidence": None}
+        rendered = renderer.render_packet("decompose", packet)
         self.assertEqual(
             rendered[len(prefix):],
-            '{"acceptance":"route","objective":"review the plan"}\n',
+            '{"acceptance":"route","objective":"decompose the task"}\n',
         )
         with tempfile.TemporaryDirectory() as directory:
-            dynamic = Path(directory) / "plan-review.json"
-            dynamic.write_text('{"objective":"review the plan","acceptance":"route"}', encoding="utf-8")
+            dynamic = Path(directory) / "decompose.json"
+            dynamic.write_text('{"objective":"decompose the task","acceptance":"route"}', encoding="utf-8")
             cli = subprocess.run(
-                [sys.executable, str(SCRIPT), "--kind", "plan-review", "--dynamic-file", str(dynamic)],
+                [sys.executable, str(SCRIPT), "--kind", "decompose", "--dynamic-file", str(dynamic)],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -47,7 +43,7 @@ class CacheHandoffTests(unittest.TestCase):
         self.assertEqual(cli.returncode, 0)
         self.assertEqual(cli.stdout, rendered)
         with self.assertRaises(ValueError):
-            renderer.render_packet("plan-review", {})
+            renderer.render_packet("decompose", {})
 
     def test_same_kind_has_identical_prefix_and_dynamic_suffix(self):
         renderer = load_renderer()
@@ -81,16 +77,16 @@ class CacheHandoffTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 renderer.render("review", dynamic)
 
-    def test_plan_and_execute_prefixes_stay_short_with_result_schema(self):
+    def test_decompose_and_execute_prefixes_stay_short_with_result_schema(self):
         renderer = load_renderer()
-        plan = renderer.PREFIXES["plan"]
+        decompose = renderer.PREFIXES["decompose"]
         execute = renderer.PREFIXES["execute"]
-        self.assertTrue(plan.startswith("CACHE_HANDOFF_V1\nKIND: PLAN\n"))
+        self.assertTrue(decompose.startswith("CACHE_HANDOFF_V1\nKIND: DECOMPOSE\n"))
         self.assertTrue(execute.startswith("CACHE_HANDOFF_V1\nKIND: EXECUTE\n"))
-        self.assertIn("CONTRACT: Objective, Scope, Constraints/Risks, Acceptance, Retrieve/Escalate; name gaps.", plan)
+        self.assertIn("Return a bounded task graph", decompose)
         self.assertIn("VALIDATION: focused checks; stop rather than widen or guess.", execute)
-        self.assertIn("Independently load matching task skills; do not assume parent skill context is inherited", plan)
-        self.assertIn("Do not re-plan. Retrieve named anchors first.", execute)
+        self.assertIn("Independently load matching task skills; do not assume parent skill context is inherited", decompose)
+        self.assertIn("Do not re-decompose. Retrieve named anchors first.", execute)
         self.assertIn("Fresh review: no planner context", renderer.PREFIXES["review"])
         self.assertIn("Independently load matching task skills", renderer.PREFIXES["review"])
         self.assertNotIn("do not use tools or other skills", renderer.PREFIXES["review"])
@@ -101,7 +97,7 @@ class CacheHandoffTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             dynamic = Path(directory) / "packet.json"
             dynamic.write_text('{"scope":"one"}', encoding="utf-8")
-            self.assertEqual(renderer.render("plan", dynamic), renderer.render_packet("plan", {"scope": "one"}))
+            self.assertEqual(renderer.render("decompose", dynamic), renderer.render_packet("decompose", {"scope": "one"}))
 
     def test_dump_strips_none_filler_and_empty_values(self):
         renderer = load_renderer()

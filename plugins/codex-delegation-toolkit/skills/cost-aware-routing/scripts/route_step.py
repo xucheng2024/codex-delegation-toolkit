@@ -11,7 +11,7 @@ from typing import Any
 
 
 ROLE_MAP_SCHEMA = "codex-model-role-map-v1"
-STEPS = ("plan", "plan-review", "implement", "judge")
+STEPS = ("decompose", "implement", "judge")
 OUTPUT_SCHEMA = "codex-step-routing-v1"
 
 
@@ -57,48 +57,57 @@ def decide(
     bounded: bool = False,
     contract_complete: bool = False,
     hard_packet: bool = False,
-    independent_review: bool = False,
     complexity_tier: str | None = None,
     delegation_available: bool = False,
 ) -> dict[str, Any]:
     if step not in STEPS:
-        raise RouteError("step must be plan, plan-review, implement, or judge")
+        raise RouteError("step must be decompose, implement, or judge")
     quality_first = roles["quality_first"]
     balanced = roles["balanced"]
     if complexity_tier not in (None, "fast", "reviewed"):
         raise RouteError("complexity_tier must be fast or reviewed")
-    if step == "plan-review":
-        # Plan review is always a fresh independent read-only check.
-        target, role, actor = quality_first, "quality_first", "spawn"
-    elif step == "judge":
+    if step == "judge":
         target, role = quality_first, "quality_first"
-        actor = "spawn" if independent_review or parent != target else "parent"
-    elif step == "plan":
+        actor = "parent" if parent == target else "spawn"
+    elif step == "decompose":
         target, role = quality_first, "quality_first"
     else:
         if complexity_tier == "fast" and not sol_pin and not terra_permit:
             economy = roles.get("economy")
-            if parent in (balanced, economy, "current"):
-                # Starting another model for a small bounded edit costs more context and
-                # latency than finishing with the already-active implementation model.
-                target = parent
-                role = next(
-                    (name for name, model in roles.items() if model == parent),
-                    "current",
-                )
-            else:
-                if economy is None:
+            if economy is None:
+                if parent in ("current", balanced):
                     return {
-                        "schema": OUTPUT_SCHEMA, "status": "ask", "action": "ask",
-                        "role": "economy", "model": None, "effort": "medium",
-                        "reason": "economy role is not configured; disclose and ask or explicit degrade",
+                        "schema": OUTPUT_SCHEMA, "status": "degraded", "action": "parent",
+                        "role": "fallback_parent", "model": parent, "effort": "medium",
+                        "spawn": False, "requested_role": "economy", "requested_model": None,
+                        "reason": "started implementation session stays local; select economy before the first model call",
                     }
-                target, role = economy, "economy"
+                return {
+                    "schema": OUTPUT_SCHEMA, "status": "ask", "action": "ask",
+                    "role": "economy", "model": None, "effort": "medium",
+                    "reason": "economy role is not configured; disclose and ask or explicit degrade",
+                }
+            target, role = economy, "economy"
         else:
             target, role = balanced, "balanced"
-    if step not in ("plan-review", "judge"):
+    if step != "judge":
         actor = "parent" if parent == target else "spawn"
     effort = effort_for(role, hard_packet)
+    if step == "implement" and (
+        parent == "current" or (role == "economy" and parent == balanced)
+    ):
+        return {
+            "schema": OUTPUT_SCHEMA,
+            "status": "degraded",
+            "action": "parent",
+            "role": "fallback_parent",
+            "model": parent,
+            "effort": effort,
+            "spawn": False,
+            "requested_role": role,
+            "requested_model": target,
+            "reason": "started implementation session stays local; select the preferred model before the first model call",
+        }
     if target != "current" and target not in available:
         return {
             "schema": OUTPUT_SCHEMA,
@@ -144,7 +153,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--bounded", action="store_true")
     parser.add_argument("--contract-complete", action="store_true")
     parser.add_argument("--hard-packet", action="store_true")
-    parser.add_argument("--independent-review", action="store_true")
     parser.add_argument("--complexity-tier", choices=("fast", "reviewed"))
     parser.add_argument(
         "--delegation-available",
@@ -165,7 +173,6 @@ def main(argv: list[str] | None = None) -> int:
             args.bounded,
             args.contract_complete,
             args.hard_packet,
-            args.independent_review,
             args.complexity_tier,
             args.delegation_available,
         )

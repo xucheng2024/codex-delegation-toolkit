@@ -22,7 +22,7 @@ python plugins/codex-delegation-toolkit/skills/cost-aware-routing/scripts/launch
   -- --sandbox workspace-write
 ```
 
-`A`, `B`, and `U` follow the definitions in `references/complexity-model.md`. Use `--select-only` to inspect the selection without starting Codex. The launcher is intentionally limited to new `codex exec` turns; an already-started desktop or IDE conversation has already paid for its first model call. The routing skill therefore disables implicit invocation but remains available through explicit `$cost-aware-routing` use.
+`A`, `B`, and `U` follow the definitions in `references/complexity-model.md`. Use `--select-only` to inspect the selection without starting Codex. The launcher is intentionally limited to new `codex exec` turns; an already-started desktop or IDE conversation has already paid for its first model call. The routing skill supports automatic discovery and explicit `$codex-delegation-toolkit:cost-aware-routing` use.
 
 ## Install
 

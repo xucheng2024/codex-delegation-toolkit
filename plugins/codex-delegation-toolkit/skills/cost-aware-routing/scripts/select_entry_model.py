@@ -52,7 +52,7 @@ def select(
             "model": None,
             "effort": "medium",
             "classification": classification,
-            "parallel_policy": "none" if role == "economy" else "evaluate_after_plan",
+            "parallel_policy": "none",
             "reason": f"{role} role is not configured",
         }
     if model not in available:
@@ -63,7 +63,7 @@ def select(
             "model": model,
             "effort": "medium",
             "classification": classification,
-            "parallel_policy": "none" if role == "economy" else "evaluate_after_plan",
+            "parallel_policy": "none",
             "reason": "selected entry model is unavailable",
         }
     return {
@@ -73,11 +73,7 @@ def select(
         "model": model,
         "effort": "medium",
         "classification": classification,
-        "parallel_policy": (
-            "none"
-            if classification["entry_tier"] == "fast"
-            else "evaluate_after_approved_graph"
-        ),
+        "parallel_policy": "none",
     }
 
 

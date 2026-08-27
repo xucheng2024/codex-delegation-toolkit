@@ -10,13 +10,13 @@ Count only production code and configuration, never tests or documentation:
 
 The preflight must be complete and untruncated. Missing or truncated evidence returns `status: incomplete`, never a fast route. The deterministic score is `C = log2(1 + A) + B + 2U`. Entry routing uses three bands: `C < 4` is `fast`, `4 <= C < 8` is `standard`, and `C >= 8` is `complex`. Missing or truncated evidence fails upward to `complex`.
 
-The classifier returns the legacy `structural_tier` and `effective_tier` fields for implementation-role compatibility, plus `entry_tier` and `entry_role` for workflow shape and first-model selection. `fast` selects economy, `standard` selects balanced, and `complex` selects quality-first. `--sol-pin` forces the complex entry path and balanced implementation. `--terra-permit`, unless Sol is pinned, forces the standard balanced path.
+The classifier returns the legacy `structural_tier` and `effective_tier` fields for implementation-role compatibility, plus `entry_tier`, `queue`, and `entry_role`. `fast` selects economy, `standard` selects balanced, and `complex` selects quality-first. `--sol-pin` forces the complex decomposition queue. `--terra-permit`, unless Sol is pinned, forces the standard queue.
 
 ```bash
 python scripts/classify_complexity.py --A 1 --B 0 --U 0 --preflight-complete
 ```
 
-Use `entry_tier` to decide whether planning is required. Pass `effective_tier` to `route_step.py --complexity-tier` only when routing implementation. Omit that flag to preserve legacy balanced implementation routing.
+Use `queue` to dispatch work. Pass `effective_tier` to `route_step.py --complexity-tier` only when routing implementation.
 
 To select the first model before any model tokens are spent, run:
 

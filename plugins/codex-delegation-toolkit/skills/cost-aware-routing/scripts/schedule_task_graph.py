@@ -23,6 +23,7 @@ classify = _CLASSIFIER.classify
 
 INPUT_SCHEMA = "codex-task-graph-v1"
 OUTPUT_SCHEMA = "codex-task-graph-schedule-v1"
+QUEUES = ("fast", "standard", "complex")
 TASK_FIELDS = (
     "id", "objective", "owned_paths", "depends_on", "acceptance", "validation",
     "A", "B", "U", "preflight_complete", "evidence_truncated",
@@ -175,6 +176,10 @@ def schedule(
             if classification["status"] != "classified":
                 raise TaskGraphError(f"task {task_id} has incomplete or truncated preflight evidence")
             task["classification"] = classification
+            task["queue"] = classification["entry_tier"]
+            task["work_type"] = (
+                "decompose" if classification["entry_tier"] == "complex" else "implement"
+            )
             task["may_delegate"] = may_delegate
             if may_delegate:
                 task["next_delegation_depth"] = current + 1
@@ -190,10 +195,25 @@ def schedule(
         ready = sorted(next_ready)
     if len(completed) != len(tasks):
         raise TaskGraphError("task dependency graph contains a cycle")
+    queues = {name: [] for name in QUEUES}
+    for wave in waves:
+        for task in wave:
+            queues[task["queue"]].append(task["id"])
+    owners: dict[str, list[dict[str, Any]]] = {name: [] for name in QUEUES}
+    for wave in waves:
+        for task in wave:
+            queue = task["queue"]
+            if not owners[queue]:
+                owners[queue].append({"id": f"{queue}-1", "task_ids": []})
+            owner = owners[queue][0]
+            task["owner"] = owner["id"]
+            owner["task_ids"].append(task["id"])
     return {
         "schema": OUTPUT_SCHEMA,
         "status": "scheduled",
         "waves": waves,
+        "queues": queues,
+        "owners": owners,
         "integration_validation": integration,
         "final_steps": ["integration_validation", "judge"],
     }
