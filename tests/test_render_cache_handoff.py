@@ -1,4 +1,6 @@
 import importlib.util
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,6 +19,36 @@ def load_renderer():
 
 
 class CacheHandoffTests(unittest.TestCase):
+    def test_plan_review_prefix_rendering_cli_and_empty_packet(self):
+        renderer = load_renderer()
+        prefix = renderer.PREFIXES["plan-review"]
+        self.assertTrue(prefix.startswith("CACHE_HANDOFF_V1\nKIND: PLAN-REVIEW\n"))
+        self.assertIn("Fresh read-only plan review.", prefix)
+        self.assertIn(
+            "CONTRACT: Objective, Evidence, Constraints, Change set, Acceptance; optional Decision model.",
+            prefix,
+        )
+
+        packet = {"acceptance": "route", "objective": "review the plan", "evidence": None}
+        rendered = renderer.render_packet("plan-review", packet)
+        self.assertEqual(
+            rendered[len(prefix):],
+            '{"acceptance":"route","objective":"review the plan"}\n',
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            dynamic = Path(directory) / "plan-review.json"
+            dynamic.write_text('{"objective":"review the plan","acceptance":"route"}', encoding="utf-8")
+            cli = subprocess.run(
+                [sys.executable, str(SCRIPT), "--kind", "plan-review", "--dynamic-file", str(dynamic)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(cli.returncode, 0)
+        self.assertEqual(cli.stdout, rendered)
+        with self.assertRaises(ValueError):
+            renderer.render_packet("plan-review", {})
+
     def test_same_kind_has_identical_prefix_and_dynamic_suffix(self):
         renderer = load_renderer()
         with tempfile.TemporaryDirectory() as directory:

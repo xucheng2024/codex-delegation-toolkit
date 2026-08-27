@@ -30,6 +30,7 @@ class EscalateStepTests(unittest.TestCase):
             parent or self.terra,
             available if available is not None else self.available,
             self.roles,
+            True,
         )
 
     def test_pass_stops_without_upgrade(self):
@@ -37,6 +38,13 @@ class EscalateStepTests(unittest.TestCase):
         self.assertEqual(result["action"], "stop")
         self.assertEqual(result["effort"], "medium")
         self.assertFalse(result["spawn"])
+
+    def test_luna_pass_stops_with_economy_role(self):
+        luna = self.roles["economy"]
+        result = self.decide("implement", "medium", "pass", parent=luna)
+        self.assertEqual(result["action"], "stop")
+        self.assertEqual(result["model"], luna)
+        self.assertEqual(result["role"], "economy")
 
     def test_implement_fail_or_incomplete_retries_terra_high(self):
         for verifier in ("fail", "incomplete"):
@@ -53,6 +61,14 @@ class EscalateStepTests(unittest.TestCase):
         self.assertEqual(result["model"], self.terra)
         self.assertTrue(result["spawn"])
 
+    def test_luna_medium_failure_escalates_to_terra_high(self):
+        luna = self.roles["economy"]
+        result = self.decide("implement", "medium", "incomplete", parent=luna)
+        self.assertEqual(result["action"], "retry")
+        self.assertEqual(result["model"], self.terra)
+        self.assertEqual(result["effort"], "high")
+        self.assertTrue(result["spawn"])
+
     def test_high_fail_spawns_sol_judge(self):
         result = self.decide("implement", "high", "fail")
         self.assertEqual(result["action"], "spawn")
@@ -67,6 +83,10 @@ class EscalateStepTests(unittest.TestCase):
             result = self.decide(step, "medium", "fail")
             self.assertEqual(result["action"], "stop", step)
             self.assertFalse(result["spawn"], step)
+
+    def test_invalid_step_error_lists_plan_review(self):
+        with self.assertRaisesRegex(ESCALATE.RouteError, "plan-review"):
+            self.decide("unknown", "medium", "fail")
 
     def test_unavailable_target_asks(self):
         retry = self.decide("implement", "medium", "fail", available={self.sol})
@@ -92,6 +112,7 @@ class EscalateStepTests(unittest.TestCase):
                 "--available",
                 self.terra,
                 self.sol,
+                "--delegation-available",
             ],
             check=False,
             capture_output=True,
@@ -101,6 +122,15 @@ class EscalateStepTests(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertEqual(output["action"], "retry")
         self.assertEqual(output["effort"], "high")
+
+    def test_spawn_escalation_fails_safe_without_transport(self):
+        result = ESCALATE.decide(
+            "implement", "high", "fail", self.terra, self.available, self.roles
+        )
+        self.assertEqual(result["status"], "degraded")
+        self.assertEqual(result["action"], "parent")
+        self.assertFalse(result["spawn"])
+        self.assertEqual(result["step"], "judge")
 
 
 if __name__ == "__main__":

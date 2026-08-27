@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -16,11 +17,14 @@ from typing import Any
 
 
 SCHEMA = "codex-compute-event-v1"
+WORKFLOW_SCHEMA = "codex-workflow-outcome-v1"
 STEPS = ("plan", "implement", "judge")
 EFFORTS = ("medium", "high")
 VERIFIERS = ("pass", "fail", "incomplete")
 ACTIONS = ("stop", "retry_high", "spawn_sol_judge")
 SUCCESSES = ("pass", "fail", "unknown")
+COMPLEXITY_BUCKETS = ("fast", "reviewed")
+POLICIES = ("single", "dag")
 MODEL_RE = re.compile(r"^[A-Za-z0-9._:-]{1,64}$")
 
 
@@ -38,6 +42,10 @@ def cache_dir() -> Path:
 
 def events_path() -> Path:
     return cache_dir() / "events.jsonl"
+
+
+def workflows_path() -> Path:
+    return cache_dir() / "workflows.jsonl"
 
 
 def repo_key(cwd: Path | None = None) -> str:
@@ -69,8 +77,36 @@ def _optional_int(value: Any, field: str) -> int | None:
 def _optional_cost(value: Any) -> float | None:
     if value is None:
         return None
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+        or value < 0
+    ):
         raise RecordError("cost_usd must be a non-negative number")
+    return float(value)
+
+
+def _positive_int(value: Any, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise RecordError(f"{field} must be a positive integer")
+    return value
+
+
+def _nonnegative_int(value: Any, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise RecordError(f"{field} must be a non-negative integer")
+    return value
+
+
+def _nonnegative_finite_number(value: Any, field: str) -> float:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+        or value < 0
+    ):
+        raise RecordError(f"{field} must be a finite non-negative number")
     return float(value)
 
 
@@ -129,6 +165,55 @@ def record(
     return payload
 
 
+def record_workflow(
+    complexity_bucket: str,
+    policy: str,
+    task_count: int,
+    dependency_count: int,
+    critical_path_length: int,
+    total_cost_units: float,
+    total_latency_ms: int,
+    final_pass: bool,
+    rework_count: int,
+    *,
+    cwd: Path | None = None,
+) -> dict[str, Any]:
+    """Append one fixed-shape, privacy-safe workflow outcome."""
+    if complexity_bucket not in COMPLEXITY_BUCKETS:
+        raise RecordError("complexity_bucket must be fast or reviewed")
+    if policy not in POLICIES:
+        raise RecordError("policy must be single or dag")
+    task_count = _positive_int(task_count, "task_count")
+    dependency_count = _nonnegative_int(dependency_count, "dependency_count")
+    critical_path_length = _positive_int(critical_path_length, "critical_path_length")
+    if critical_path_length > task_count:
+        raise RecordError("critical_path_length must not exceed task_count")
+    total_cost_units = _nonnegative_finite_number(total_cost_units, "total_cost_units")
+    total_latency_ms = _nonnegative_int(total_latency_ms, "total_latency_ms")
+    if not isinstance(final_pass, bool):
+        raise RecordError("final_pass must be a boolean")
+    rework_count = _nonnegative_int(rework_count, "rework_count")
+    payload = {
+        "schema": WORKFLOW_SCHEMA,
+        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "repo": repo_key(cwd),
+        "complexity_bucket": complexity_bucket,
+        "policy": policy,
+        "task_count": task_count,
+        "dependency_count": dependency_count,
+        "critical_path_length": critical_path_length,
+        "total_cost_units": total_cost_units,
+        "total_latency_ms": total_latency_ms,
+        "final_pass": final_pass,
+        "rework_count": rework_count,
+    }
+    path = workflows_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n")
+    return payload
+
+
 def load_records() -> list[dict[str, Any]]:
     path = events_path()
     if not path.is_file():
@@ -142,8 +227,13 @@ def load_records() -> list[dict[str, Any]]:
             item = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if isinstance(item, dict) and item.get("schema") == SCHEMA and item.get("action") in ACTIONS:
-            rows.append(item)
+        if not isinstance(item, dict) or item.get("schema") != SCHEMA or item.get("action") not in ACTIONS:
+            continue
+        try:
+            _optional_cost(item.get("cost_usd"))
+        except RecordError:
+            continue
+        rows.append(item)
     return rows
 
 
@@ -179,6 +269,17 @@ def main(argv: list[str] | None = None) -> int:
     record_parser.add_argument("--latency-ms", type=int)
     record_parser.add_argument("--cost-usd", type=float)
 
+    workflow_parser = sub.add_parser("record-workflow", help="Append one privacy-safe workflow outcome")
+    workflow_parser.add_argument("--complexity-bucket", required=True, choices=COMPLEXITY_BUCKETS)
+    workflow_parser.add_argument("--policy", required=True, choices=POLICIES)
+    workflow_parser.add_argument("--task-count", required=True, type=int)
+    workflow_parser.add_argument("--dependency-count", required=True, type=int)
+    workflow_parser.add_argument("--critical-path-length", required=True, type=int)
+    workflow_parser.add_argument("--total-cost-units", required=True, type=float)
+    workflow_parser.add_argument("--total-latency-ms", required=True, type=int)
+    workflow_parser.add_argument("--final-pass", action="store_true")
+    workflow_parser.add_argument("--rework-count", required=True, type=int)
+
     sub.add_parser("stats", help="Show counts for the current repository")
     args = parser.parse_args(argv)
 
@@ -197,6 +298,20 @@ def main(argv: list[str] | None = None) -> int:
                 reasoning_tokens=args.reasoning_tokens,
                 latency_ms=args.latency_ms,
                 cost_usd=args.cost_usd,
+            )
+            print(json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
+            return 0
+        if args.command == "record-workflow":
+            payload = record_workflow(
+                args.complexity_bucket,
+                args.policy,
+                args.task_count,
+                args.dependency_count,
+                args.critical_path_length,
+                args.total_cost_units,
+                args.total_latency_ms,
+                args.final_pass,
+                args.rework_count,
             )
             print(json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
             return 0

@@ -13,10 +13,11 @@ from typing import Any
 SCHEMA = "codex-model-catalog-v1"
 OUTPUT_SCHEMA = "codex-model-routing-v1"
 MAX_CATALOG_CHARS = 1_000_000
-ROLES = ("quality_first", "balanced")
+ROLES = ("quality_first", "balanced", "economy")
 DEFAULT_REQUIREMENTS = {
     "quality_first": ("reasoning",),
     "balanced": ("coding",),
+    "economy": ("coding",),
 }
 
 
@@ -101,6 +102,8 @@ def _rank(role: str, model: dict[str, Any]) -> tuple[Any, ...]:
             model["latency"],
             model["id"],
         )
+    if role == "economy":
+        return (model["cost"], model["latency"], -model["quality"], model["id"])
     raise CatalogError(f"unknown role: {role}")
 
 

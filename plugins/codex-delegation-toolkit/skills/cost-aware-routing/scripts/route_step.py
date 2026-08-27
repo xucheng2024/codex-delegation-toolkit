@@ -11,7 +11,7 @@ from typing import Any
 
 
 ROLE_MAP_SCHEMA = "codex-model-role-map-v1"
-STEPS = ("plan", "implement", "judge")
+STEPS = ("plan", "plan-review", "implement", "judge")
 OUTPUT_SCHEMA = "codex-step-routing-v1"
 
 
@@ -33,7 +33,13 @@ def load_role_map(path: Path) -> dict[str, str]:
         model = roles.get(role)
         if not isinstance(model, str) or not model:
             raise RouteError(f"roles.{role} must be a non-empty model id")
-    return {role: str(roles[role]) for role in required}
+    result = {role: str(roles[role]) for role in required}
+    economy = roles.get("economy")
+    if economy is not None:
+        if not isinstance(economy, str) or not economy:
+            raise RouteError("roles.economy must be a non-empty model id")
+        result["economy"] = economy
+    return result
 
 
 def effort_for(role: str, hard_packet: bool) -> str:
@@ -51,23 +57,49 @@ def decide(
     bounded: bool = False,
     contract_complete: bool = False,
     hard_packet: bool = False,
+    independent_review: bool = False,
+    complexity_tier: str | None = None,
+    delegation_available: bool = False,
 ) -> dict[str, Any]:
     if step not in STEPS:
-        raise RouteError("step must be plan, implement, or judge")
-    sol = roles["quality_first"]
-    terra = roles["balanced"]
-    if step == "judge":
-        # Reviews must be a fresh spawn, including when the parent is Sol.
-        target, role, actor = sol, "quality_first", "spawn"
+        raise RouteError("step must be plan, plan-review, implement, or judge")
+    quality_first = roles["quality_first"]
+    balanced = roles["balanced"]
+    if complexity_tier not in (None, "fast", "reviewed"):
+        raise RouteError("complexity_tier must be fast or reviewed")
+    if step == "plan-review":
+        # Plan review is always a fresh independent read-only check.
+        target, role, actor = quality_first, "quality_first", "spawn"
+    elif step == "judge":
+        target, role = quality_first, "quality_first"
+        actor = "spawn" if independent_review or parent != target else "parent"
     elif step == "plan":
-        target, role = sol, "quality_first"
-        actor = "parent" if parent == sol else "spawn"
-    elif parent == terra:
-        target, role, actor = terra, "balanced", "parent"
+        target, role = quality_first, "quality_first"
     else:
-        target, role, actor = terra, "balanced", "spawn"
+        if complexity_tier == "fast" and not sol_pin and not terra_permit:
+            economy = roles.get("economy")
+            if parent in (balanced, economy, "current"):
+                # Starting another model for a small bounded edit costs more context and
+                # latency than finishing with the already-active implementation model.
+                target = parent
+                role = next(
+                    (name for name, model in roles.items() if model == parent),
+                    "current",
+                )
+            else:
+                if economy is None:
+                    return {
+                        "schema": OUTPUT_SCHEMA, "status": "ask", "action": "ask",
+                        "role": "economy", "model": None, "effort": "medium",
+                        "reason": "economy role is not configured; disclose and ask or explicit degrade",
+                    }
+                target, role = economy, "economy"
+        else:
+            target, role = balanced, "balanced"
+    if step not in ("plan-review", "judge"):
+        actor = "parent" if parent == target else "spawn"
     effort = effort_for(role, hard_packet)
-    if target not in available:
+    if target != "current" and target not in available:
         return {
             "schema": OUTPUT_SCHEMA,
             "status": "ask",
@@ -76,6 +108,19 @@ def decide(
             "model": target,
             "effort": effort,
             "reason": "target unavailable; disclose and ask or explicit degrade",
+        }
+    if actor == "spawn" and not delegation_available:
+        return {
+            "schema": OUTPUT_SCHEMA,
+            "status": "degraded",
+            "action": "parent",
+            "role": "fallback_parent",
+            "model": parent,
+            "effort": effort,
+            "spawn": False,
+            "requested_role": role,
+            "requested_model": target,
+            "reason": "delegation transport unavailable; use bounded inline execution or review and never wait",
         }
     return {
         "schema": OUTPUT_SCHEMA,
@@ -99,6 +144,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--bounded", action="store_true")
     parser.add_argument("--contract-complete", action="store_true")
     parser.add_argument("--hard-packet", action="store_true")
+    parser.add_argument("--independent-review", action="store_true")
+    parser.add_argument("--complexity-tier", choices=("fast", "reviewed"))
+    parser.add_argument(
+        "--delegation-available",
+        action="store_true",
+        help="Assert that spawn_agent is callable in this runtime. Omission fails safe to inline work.",
+    )
     parser.add_argument("--available", nargs="+", required=True)
     args = parser.parse_args(argv)
     try:
@@ -113,12 +165,15 @@ def main(argv: list[str] | None = None) -> int:
             args.bounded,
             args.contract_complete,
             args.hard_packet,
+            args.independent_review,
+            args.complexity_tier,
+            args.delegation_available,
         )
     except (OSError, UnicodeError, json.JSONDecodeError, RouteError) as exc:
         print(json.dumps({"schema": OUTPUT_SCHEMA, "status": "invalid", "error": str(exc)}))
         return 2
     print(json.dumps(output, sort_keys=True))
-    return 0 if output["status"] == "routed" else 3
+    return 0 if output["status"] in ("routed", "degraded") else 3
 
 
 if __name__ == "__main__":

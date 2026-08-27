@@ -26,9 +26,10 @@ def decide(
     parent: str,
     available: set[str],
     roles: dict[str, str],
+    delegation_available: bool = False,
 ) -> dict[str, Any]:
     if step not in STEPS:
-        raise RouteError("step must be plan, implement, or judge")
+        raise RouteError("step must be plan, plan-review, implement, or judge")
     if current_effort not in EFFORTS:
         raise RouteError("current-effort must be medium or high")
     if verifier not in VERIFIERS:
@@ -37,11 +38,15 @@ def decide(
     sol = roles["quality_first"]
     terra = roles["balanced"]
     if verifier == "pass" or step != "implement":
+        parent_role = next(
+            (role for role, model in roles.items() if model == parent),
+            "balanced",
+        )
         return {
             "schema": OUTPUT_SCHEMA,
             "status": "routed",
             "action": "stop",
-            "role": "balanced" if step == "implement" else "quality_first",
+            "role": parent_role if step == "implement" else "quality_first",
             "model": parent,
             "effort": current_effort,
             "step": step,
@@ -69,6 +74,20 @@ def decide(
             "spawn": False,
             "reason": "target unavailable; disclose and ask or explicit degrade",
         }
+    if spawn and not delegation_available:
+        return {
+            "schema": OUTPUT_SCHEMA,
+            "status": "degraded",
+            "action": "parent",
+            "role": "fallback_parent",
+            "model": parent,
+            "effort": effort,
+            "step": next_step,
+            "spawn": False,
+            "requested_role": role,
+            "requested_model": target,
+            "reason": "delegation transport unavailable; use bounded inline execution or review and never wait",
+        }
     return {
         "schema": OUTPUT_SCHEMA,
         "status": "routed",
@@ -90,15 +109,28 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--verifier", choices=VERIFIERS, required=True)
     parser.add_argument("--parent", required=True)
     parser.add_argument("--available", nargs="+", required=True)
+    parser.add_argument(
+        "--delegation-available",
+        action="store_true",
+        help="Assert that spawn_agent is callable in this runtime. Omission fails safe to inline work.",
+    )
     args = parser.parse_args(argv)
     try:
         roles = load_role_map(args.role_map)
-        output = decide(args.step, args.current_effort, args.verifier, args.parent, set(args.available), roles)
+        output = decide(
+            args.step,
+            args.current_effort,
+            args.verifier,
+            args.parent,
+            set(args.available),
+            roles,
+            args.delegation_available,
+        )
     except (OSError, UnicodeError, json.JSONDecodeError, RouteError) as exc:
         print(json.dumps({"schema": OUTPUT_SCHEMA, "status": "invalid", "error": str(exc)}))
         return 2
     print(json.dumps(output, sort_keys=True))
-    return 0 if output["status"] == "routed" else 3
+    return 0 if output["status"] in ("routed", "degraded") else 3
 
 
 if __name__ == "__main__":

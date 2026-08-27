@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).parents[1]
 PLUGIN = ROOT / "plugins/codex-delegation-toolkit"
 ROUTER = (PLUGIN / "skills/cost-aware-routing/SKILL.md").read_text(encoding="utf-8")
+WORKFLOW_ECONOMICS = (PLUGIN / "skills/cost-aware-routing/references/workflow-economics.md").read_text(encoding="utf-8")
 HANDOFF = (PLUGIN / "skills/cost-aware-routing/references/handoff-output.md").read_text(encoding="utf-8")
 BUDGET = (PLUGIN / "skills/agent-context-budget/SKILL.md").read_text(encoding="utf-8")
 RENDERER_PATH = PLUGIN / "skills/cost-aware-routing/scripts/render_cache_handoff.py"
@@ -47,8 +48,24 @@ class SkillContractTests(unittest.TestCase):
         for value in (
             "`quality_first`", "`balanced`", "scripts/route_step.py",
             "Honor the script output", "do not re-derive the matrix",
-            "fresh spawned `quality_first` instance",
+            "ordinarily judges locally", "--independent-review",
+            "fresh read-only `quality_first` reviewer",
+            "`plan-review` is a distinct pre-implementation gate",
+            "always spawns a fresh read-only `quality_first` reviewer",
             "never silently substitute a model",
+            "presence of `wait` alone is not delegation capability",
+            "If it does not, pass the literal `current`; never guess a role or model id",
+        ):
+            self.assertIn(value, ROUTER)
+
+    def test_router_bounds_delegation_waits_and_requires_a_spawn_handle(self):
+        for value in (
+            "Treat a route decision as intent, never as proof that a child exists",
+            "Never call `wait_agent` unless that call returned a non-empty identifier",
+            "an empty receiver set is an immediate transport failure",
+            "make at most two `wait_agent` calls of at most 60 seconds each",
+            "interrupt that identifier once",
+            "Do not retry spawn",
         ):
             self.assertIn(value, ROUTER)
 
@@ -75,13 +92,17 @@ class SkillContractTests(unittest.TestCase):
 
     def test_router_classifies_before_read_and_keeps_sol_from_editing(self):
         for value in (
-            "Classify from the user request and already-provided context only",
-            "Do not read or search the repo, and do not draft an implementation plan, before the routing decision",
-            "Count each distinct uncertainty once; file count alone is not a trigger",
-            "the action, not every nearby file",
+            "bounded read-only one-hop impact preflight",
+            "Use `entry_tier` for workflow shape and first-model selection",
+            "use `effective_tier` only for implementation-role compatibility",
+            "Permissions and authorization are separate execution constraints, never score inputs",
+            "Effective `fast`",
+            "Entry `complex`",
             "Sol never edits",
             "It forces Sol plan plus review; it does not make Sol implement",
             "from the approved contract with no second plan",
+            "pause for explicit user approval after plan review",
+            "Decorative equations are forbidden",
             "The Sol planner is read-only and may inspect the repo",
             "writes anchors, scope, and acceptance",
         ):
@@ -153,6 +174,56 @@ class SkillContractTests(unittest.TestCase):
     def test_router_still_refers_to_current_accelerator(self):
         self.assertNotIn("$token-saver", ROUTER + BUDGET + HANDOFF)
         self.assertIn("$codex-speeder", ROUTER)
+
+    def test_router_documents_deterministic_task_graph_completion(self):
+        reference = (PLUGIN / "skills/cost-aware-routing/references/task-graph.md").read_text(encoding="utf-8")
+        for value in (
+            "schedule_task_graph.py", "mandatory integration validation and then a `judge`",
+            "--allow-recursive-delegation", "deterministic dependency-aware waves",
+            "different functions in the same file remain serial by default",
+        ):
+            self.assertIn(value, ROUTER)
+        for value in ("sorted Kahn ready sets", "ancestor/descendant paths conflict", "integration_validation"):
+            self.assertIn(value, reference)
+
+    def test_router_selects_entry_model_before_first_model_call(self):
+        for value in (
+            "scripts/select_entry_model.py",
+            "before the first model call",
+            "selector is deterministic and invokes no model",
+            "fast` classification selects Luna at medium effort",
+            "standard` selects Terra at medium effort",
+            "complex` selects Sol to plan",
+            "Entry selection does not enable parallelism",
+        ):
+            self.assertIn(value, ROUTER)
+
+    def test_router_documents_workflow_economics_and_measurement(self):
+        self.assertIn("references/workflow-economics.md", ROUTER)
+        self.assertIn(
+            "For one bounded task with no proposed graph and no supplied economics",
+            ROUTER,
+        )
+        self.assertIn("route it directly with `route_step.py`", ROUTER)
+        self.assertIn("do not read the workflow-economics reference", ROUTER)
+        for value in (
+            "scripts/orchestrate_workflow.py", "scripts/record_compute.py record-workflow",
+            "required reducer use order", "conservative fallback",
+            "approved supplied graph proceeds to implementation and is never planned again",
+        ):
+            self.assertIn(value, ROUTER)
+        for value in (
+            "expected_score = (K + latency_weight * L) / p",
+            "K = dag.overhead_cost_units + sum(task.cost_units)",
+            "L = dag.overhead_latency_ms + sum(max(task.latency_ms in wave) for wave)",
+            "status `insufficient`", "partial or mismatched estimates", "rejected rather than guessed",
+            "Gather bounded preflight evidence", "obtain an approved graph",
+            "Invoke `orchestrate_workflow.py plan` once", "internally classifies and schedules",
+            "supplied graph is already approved",
+            "execution_mode` and `next_action`", "orchestrate_workflow.py\n   after-implement",
+            "codex-workflow-outcome-v1", "record_compute.py record-workflow",
+        ):
+            self.assertIn(value, WORKFLOW_ECONOMICS)
 
     def test_cache_prefix_eval_uses_renderer_and_cache_fields(self):
         eval_source = (ROOT / "experiments/cache_prefix_eval.py").read_text(encoding="utf-8")
