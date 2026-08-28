@@ -28,6 +28,7 @@ TASK_FIELDS = (
     "id", "objective", "owned_paths", "depends_on", "acceptance", "validation",
     "A", "B", "U", "preflight_complete", "evidence_truncated",
 )
+TASK_OPTIONAL_FIELDS = ("sol_pin", "terra_permit", "resources")
 
 
 class TaskGraphError(ValueError):
@@ -52,6 +53,13 @@ def _boolean(value: Any, name: str) -> bool:
     return value
 
 
+def _resource(value: Any) -> str:
+    resource = _nonempty_string(value, "resources entry")
+    if any(character.isspace() for character in resource):
+        raise TaskGraphError("resources entries must not contain whitespace")
+    return resource
+
+
 def normalize_path(value: Any) -> str:
     """Return a repository-relative POSIX path, rejecting ambiguous components."""
     path = _nonempty_string(value, "owned_paths entry")
@@ -73,7 +81,7 @@ def _validate_task(value: Any) -> dict[str, Any]:
     missing = [field for field in TASK_FIELDS if field not in value]
     if missing:
         raise TaskGraphError(f"task missing required fields: {', '.join(missing)}")
-    unknown = set(value) - set(TASK_FIELDS) - {"sol_pin", "terra_permit"}
+    unknown = set(value) - set(TASK_FIELDS) - set(TASK_OPTIONAL_FIELDS)
     if unknown:
         raise TaskGraphError(f"task contains unknown fields: {', '.join(sorted(unknown))}")
 
@@ -85,6 +93,8 @@ def _validate_task(value: Any) -> dict[str, Any]:
     if not isinstance(task["owned_paths"], list):
         raise TaskGraphError("owned_paths must be a list")
     task["owned_paths"] = [normalize_path(path) for path in task["owned_paths"]]
+    if not task["owned_paths"]:
+        raise TaskGraphError("owned_paths must not be empty")
     if len(task["owned_paths"]) != len(set(task["owned_paths"])):
         raise TaskGraphError("owned_paths must not contain duplicates")
     if not isinstance(task["depends_on"], list) or not all(isinstance(dep, str) and dep for dep in task["depends_on"]):
@@ -98,7 +108,30 @@ def _validate_task(value: Any) -> dict[str, Any]:
     for field in ("sol_pin", "terra_permit"):
         if field in task:
             task[field] = _boolean(task[field], field)
+    if "resources" in task:
+        if not isinstance(task["resources"], list):
+            raise TaskGraphError("resources must be a list")
+        task["resources"] = [_resource(resource) for resource in task["resources"]]
+        if len(task["resources"]) != len(set(task["resources"])):
+            raise TaskGraphError("resources must not contain duplicates")
     return task
+
+
+def _lease_resources(task: dict[str, Any]) -> list[str]:
+    """Return the file and semantic resources the runtime must lease atomically."""
+    return [*(f"path:{path}" for path in task["owned_paths"]), *(
+        f"resource:{resource}" for resource in task.get("resources", [])
+    )]
+
+
+def _tasks_conflict(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    if any(
+        _conflicts(path, other_path)
+        for path in left["owned_paths"]
+        for other_path in right["owned_paths"]
+    ):
+        return True
+    return bool(set(left.get("resources", [])) & set(right.get("resources", [])))
 
 
 def validate_graph(value: Any) -> tuple[list[dict[str, Any]], list[str]]:
@@ -152,12 +185,7 @@ def schedule(
         selected: list[str] = []
         for task_id in ready:
             task = by_id[task_id]
-            if not any(
-                _conflicts(path, chosen_path)
-                for chosen in selected
-                for path in task["owned_paths"]
-                for chosen_path in by_id[chosen]["owned_paths"]
-            ):
+            if not any(_tasks_conflict(task, by_id[chosen]) for chosen in selected):
                 selected.append(task_id)
         if not selected:  # Defensive: a valid empty-scope graph always selects one.
             raise TaskGraphError("no non-conflicting ready task could be selected")
@@ -180,6 +208,7 @@ def schedule(
             task["work_type"] = (
                 "decompose" if classification["entry_tier"] == "complex" else "implement"
             )
+            task["lease_resources"] = _lease_resources(task)
             task["may_delegate"] = may_delegate
             if may_delegate:
                 task["next_delegation_depth"] = current + 1

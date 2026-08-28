@@ -24,6 +24,12 @@ python plugins/codex-delegation-toolkit/skills/cost-aware-routing/scripts/launch
 
 `A`, `B`, and `U` follow the definitions in `references/complexity-model.md`. Use `--select-only` to inspect the selection without starting Codex. The launcher is intentionally limited to new `codex exec` turns; an already-started desktop or IDE conversation has already paid for its first model call. The routing skill supports automatic discovery and explicit `$codex-delegation-toolkit:cost-aware-routing` use.
 
+For a complex task, produce its graph with `scripts/sol_decompose.py`. It validates Sol's first JSON response immediately; if and only if the schema is invalid, it sends exactly one schema-only correction to the newly-created Sol thread. It never manually rewrites JSON or resumes a remembered Luna/Sol thread, preventing stale-session calls and their extra cost.
+
+## Low-cost serial/parallel A/B
+
+`experiments/parallel_ab.py` runs serial then parallel once by default, prints live arm status, measures wall time, and computes cost from a user-supplied per-model rate card plus real usage JSONL. It reports a directional result only; use at most three repeats after the first sample. Commands must use separate clean worktrees and write events such as `{"model":"gpt-5.6-terra","input":1200,"output":300}`. Rate cards use `input`, `cached_input`, `output`, and `reasoning` prices in USD per million tokens.
+
 ## Install
 
 ```bash

@@ -64,8 +64,8 @@ After implementation, validate deterministically. Do not use self-reported confi
 - `standard`: Terra implements, validates, and self-reviews.
 - `complex`: Sol produces a bounded task graph; each child is classified back into one of the three queues. Sol does not implement.
 - For complex, spawned implementation, or judge work, read [references/reviewed-workflow.md](references/reviewed-workflow.md).
-- For a task graph, also read [references/task-graph.md](references/task-graph.md) and run `scripts/orchestrate_workflow.py`. An approved graph is dispatched directly without another planning or economics pass.
-- Queues are fixed: `fast`, `standard`, and `complex`. Each non-empty queue has exactly one logical owner regardless of backlog. Execute every queue and dependency wave serially for now; do not create queues, owners, or implementation agents from queue length. Only `complex` decomposition may delegate to Sol.
+- Sol graph: run `scripts/sol_decompose.py`, then read [references/task-graph.md](references/task-graph.md) and run `scripts/orchestrate_workflow.py`. It validates and safely repairs one same-thread schema error; without another planning or economics pass.
+- Queues are fixed: `fast`, `standard`, `complex`; each has exactly one logical owner. Execute every queue and dependency wave serially by default; do not create queues, owners, or implementation agents from backlog. Explicit `max_parallelism > 1` needs atomic leases, isolated worktrees, owned-path checks, and integration validation; see `task-graph.md`. Only `complex` may delegate to Sol.
 - On task failure, stop its dependents. After every leaf succeeds, run the declared integration validation and let the Sol parent judge the final diff.
 - Runtime catalog, availability, transport, or effort resolution: read [references/model-routing.md](references/model-routing.md) and `references/model-role-map.json`.
 - Output targets, overflow, or reference-based compression only: read [references/handoff-output.md](references/handoff-output.md).

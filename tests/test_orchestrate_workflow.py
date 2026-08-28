@@ -135,6 +135,21 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(output["dispatch_mode"], "serial")
         self.assertEqual(len(output["schedule"]["owners"]["fast"]), 1)
 
+    def test_parallel_dispatch_is_explicit_and_declares_safety_requirements(self):
+        output = WORKFLOW.decide_queue(
+            queue_request(parent="sol", graph=graph(), max_parallelism=2), roles=ROLES
+        )
+        self.assertEqual(output["dispatch_mode"], "parallel-leased")
+        self.assertEqual(output["max_parallelism"], 2)
+        self.assertEqual(
+            output["parallel_requirements"],
+            ["acquire-task-leases", "isolated-worktree", "verify-owned-paths-before-merge"],
+        )
+        with self.assertRaisesRegex(WORKFLOW.WorkflowError, "positive"):
+            WORKFLOW.decide_queue(queue_request(graph=graph(), max_parallelism=0), roles=ROLES)
+        with self.assertRaisesRegex(WORKFLOW.WorkflowError, "requires graph"):
+            WORKFLOW.decide_queue(queue_request(max_parallelism=2), roles=ROLES)
+
     def test_unavailable_queue_worker_fails_closed(self):
         with self.assertRaisesRegex(WORKFLOW.WorkflowError, "standard queue is unavailable"):
             WORKFLOW.decide_queue(

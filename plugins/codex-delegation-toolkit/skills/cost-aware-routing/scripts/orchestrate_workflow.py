@@ -30,7 +30,7 @@ _QUEUE_REQUIRED = {
     "schema", "parent", "available", "complexity", "allow_recursive_delegation",
     "current_delegation_depth", "max_delegation_depth",
 }
-_QUEUE_OPTIONAL = {"graph", "delegation_available"}
+_QUEUE_OPTIONAL = {"graph", "delegation_available", "max_parallelism"}
 
 
 class WorkflowError(ValueError):
@@ -91,8 +91,14 @@ def _validate_queue_request(value: Any) -> dict[str, Any]:
             value.get("delegation_available", False), "delegation_available"
         ),
     }
+    max_parallelism = value.get("max_parallelism", 1)
+    normalized["max_parallelism"] = _nonnegative_int(max_parallelism, "max_parallelism")
+    if normalized["max_parallelism"] == 0:
+        raise WorkflowError("max_parallelism must be a positive integer")
     if "graph" in value:
         normalized["graph"] = value["graph"]
+    elif normalized["max_parallelism"] != 1:
+        raise WorkflowError("max_parallelism greater than one requires graph")
     return normalized
 
 
@@ -154,7 +160,11 @@ def decide_queue(value: Any, *, roles: dict[str, str] | None = None) -> dict[str
             "classification": classification,
             "queue": classification["queue"],
             "execution_mode": "waves",
-            "dispatch_mode": "serial",
+            "dispatch_mode": "serial" if request["max_parallelism"] == 1 else "parallel-leased",
+            "max_parallelism": request["max_parallelism"],
+            "parallel_requirements": [] if request["max_parallelism"] == 1 else [
+                "acquire-task-leases", "isolated-worktree", "verify-owned-paths-before-merge",
+            ],
             "failure_policy": "stop-dependent-tasks",
             "schedule": schedule_output,
         }

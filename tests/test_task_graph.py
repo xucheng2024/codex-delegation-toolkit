@@ -42,6 +42,8 @@ class TaskGraphTests(unittest.TestCase):
             SCHEDULER.schedule(graph(task("a", ["a.py"], preflight_complete=1)))
         with self.assertRaisesRegex(SCHEDULER.TaskGraphError, "non-empty string"):
             SCHEDULER.schedule(graph(task("a", ["a.py"]), integration_validation=["  \t "]))
+        with self.assertRaisesRegex(SCHEDULER.TaskGraphError, "owned_paths must not be empty"):
+            SCHEDULER.schedule(graph(task("a", [])))
 
     def test_rejects_duplicate_unknown_self_and_cycle_dependencies(self):
         cases = (
@@ -78,6 +80,24 @@ class TaskGraphTests(unittest.TestCase):
             task("a", ["pkg"]), task("b", ["pkg/b.py"]), task("c", ["other.py"]),
         ))
         self.assertEqual([[item["id"] for item in wave] for wave in result["waves"]], [["a", "c"], ["b"]])
+
+    def test_shared_semantic_resources_serialize_and_emit_leases(self):
+        result = SCHEDULER.schedule(graph(
+            task("migration", ["db/migration.py"], resources=["db:schema"]),
+            task("api", ["api/orders.py"], resources=["db:schema"]),
+            task("ui", ["ui/orders.py"]),
+        ))
+        self.assertEqual(
+            [[item["id"] for item in wave] for wave in result["waves"]],
+            [["api", "ui"], ["migration"]],
+        )
+        emitted = {item["id"]: item for wave in result["waves"] for item in wave}
+        self.assertEqual(
+            emitted["migration"]["lease_resources"],
+            ["path:db/migration.py", "resource:db:schema"],
+        )
+        with self.assertRaisesRegex(SCHEDULER.TaskGraphError, "resources entries"):
+            SCHEDULER.schedule(graph(task("bad", ["a.py"], resources=["two words"])))
 
     def test_queue_length_never_adds_an_owner(self):
         fast = graph(*(task(name, [f"{name}.py"]) for name in ("a", "b", "c", "d")))

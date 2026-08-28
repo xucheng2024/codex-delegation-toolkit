@@ -21,9 +21,11 @@ Before delegation, resolve the repository root with `pwd -P` and use that canoni
 
 Use at most one Sol decomposer per complex task. Do not delegate restatement or routine self-review. Keep only `STATUS` plus the task graph or `FINDINGS`.
 
+Run `scripts/sol_decompose.py` for the Sol graph-producing turn. It validates the returned JSON with the exact task-graph scheduler contract before any dispatch. If the graph is invalid, it issues at most one schema-only repair request to the thread ID emitted by that same launch; it never accepts a supplied, remembered, or guessed thread ID. If the repair is still invalid, it emits an `incomplete` receipt: do not manually normalize the graph and do not schedule it.
+
 ## Approved task graphs
 
-Read `task-graph.md` and run `scripts/schedule_task_graph.py`. It emits deterministic dependency-aware waves, but execution is temporarily serial and logical owners do not create implementation agents; different functions in the same file remain serial by default. Only complex decomposition may use `--allow-recursive-delegation` when depth permits. Run mandatory integration validation and then a `judge`.
+Run `scripts/sol_decompose.py --prompt-file <request> --output task-graph.json` before `scripts/schedule_task_graph.py`. The first command is the required approval gate; it writes a validated graph or emits an `incomplete` receipt. The scheduler then emits deterministic dependency-aware waves. Execution is serial by default and logical owners do not create implementation agents; different functions in the same file remain serial by default. Only complex decomposition may use `--allow-recursive-delegation` when depth permits. Run mandatory integration validation and then a `judge`.
 
 ## Handoffs
 
